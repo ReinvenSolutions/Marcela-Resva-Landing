@@ -115,11 +115,25 @@ export default function Landing() {
           {/* Centered Title Section */}
           <div className="text-center mb-12">
             <h1 className="text-5xl lg:text-6xl font-cormorant font-bold leading-tight mb-8" style={{color: '#f6e3eb'}}>
-              <span className="text-yellow-300">Date el permiso</span> de cada vez sentirte más sostenida por la vida
+              <span className="text-yellow-300">¿Y si te aseguro que</span>
             </h1>
-            <p className="text-lg text-white/95 leading-relaxed max-w-4xl mx-auto mb-6">
-              Desde 2014, utilizo y comparto las herramientas que la divinidad me entrega para comprender cómo darnos el permiso de transformar cada límite en expansión.
-            </p>
+            <h2 className="text-3xl lg:text-4xl font-cormorant font-bold leading-tight mb-6 text-white">
+              Tu mayor bloqueo no es la falta de herramientas… sino la falta de certeza en ti misma?
+            </h2>
+            <div className="text-lg text-white/95 leading-relaxed max-w-4xl mx-auto mb-6 space-y-4">
+              <p>Sé que hay algo en ti que quiere nacer… pero no sabes cómo.</p>
+              <p>Un proyecto.</p>
+              <p>Un nuevo camino.</p>
+              <p>O incluso un bebé.</p>
+              <p className="font-semibold">Tienes una ventaja y es la verdad que tu alma ya conoce:</p>
+              <p className="text-yellow-200 text-xl font-medium">Eres un canal de vida. Naciste con ese don.</p>
+              <p>No necesitas "convertirte en algo más", Ni esperar a tener más tiempo, más claridad o más confianza.</p>
+              <p className="text-yellow-200 font-semibold">La vida te creó para crear.</p>
+              <p className="text-yellow-200 font-semibold">Para materializar lo invisible.</p>
+              <p className="text-yellow-200 font-semibold">Para sostener lo sagrado que nace a través de ti.</p>
+              <p className="text-2xl font-cormorant italic mt-6">La pregunta no es:<br></br>"¿puedo?"…</p>
+              <p className="text-3xl font-cormorant italic text-yellow-300">la pregunta es:<br></br>¿Quiero recordar quién soy?</p>
+            </div>
           </div>
 
           {/* 4 Gifts Section */}
@@ -129,7 +143,7 @@ export default function Landing() {
                 Regístrate hoy y recibe
               </h2>
               <p className="text-xl text-white/95 mb-8">
-                Herramientas para reconectar con tu divinidad y tu misión de vida.
+                4 regalos para reconectar con la certeza en ti misma.
               </p>
             </div>
 
