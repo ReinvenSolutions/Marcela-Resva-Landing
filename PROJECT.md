@@ -20,25 +20,17 @@ Preferred communication style: Simple, everyday language.
 - **Forms**: React Hook Form with Zod validation
 
 ### Backend Architecture
-- **Runtime**: Node.js with Express.js
-- **Language**: TypeScript with ES modules
-- **Database**: PostgreSQL with Drizzle ORM
-- **Database Provider**: Neon Database (@neondatabase/serverless)
-- **Storage**: In-memory storage with interface for future database integration
-- **Session Management**: Ready for PostgreSQL session store (connect-pg-simple)
+- **Hosting**: Netlify (static site + serverless functions)
+- **Functions**: Netlify Functions para suscripciones y webhooks
+- **Newsletter**: MailerLite API para gestión de suscriptores
+- **Deploy**: Build estático con Vite, funciones serverless en Node.js
 
 ## Key Components
 
-### Database Schema
-- **Users Table**: Basic user authentication (id, username, password)
-- **Subscribers Table**: Newsletter subscribers with MailerLite integration
-  - firstName, lastName, email, currentMoment (spiritual status)
-  - subscribedAt timestamp and mailerLiteId for external sync
-
-### API Endpoints
-- `POST /api/subscribe`: Newsletter subscription with MailerLite integration
-- Validates email uniqueness and syncs with MailerLite API
-- Returns appropriate Spanish error messages
+### API Endpoints (Netlify Functions)
+- `/.netlify/functions/subscribe`: Newsletter subscription con MailerLite
+- `/.netlify/functions/confirm-subscription`: Confirmación de suscripción
+- `/.netlify/functions/webhook-mailerlite`: Webhook para eventos de MailerLite
 
 ### Frontend Pages
 - **Landing Page**: Main spiritual transformation page with newsletter signup
@@ -54,13 +46,12 @@ Preferred communication style: Simple, everyday language.
 ## Data Flow
 
 1. User visits landing page with animated particle background
-2. User fills newsletter subscription form (firstName, lastName, email, currentMoment)
+2. User fills newsletter subscription form (firstName, email)
 3. Frontend validates form data using Zod schema
-4. API endpoint processes subscription:
-   - Checks for existing email in local storage
-   - Creates subscriber record locally
-   - Syncs with MailerLite API using environment variables
-   - Updates local record with MailerLite ID
+4. Netlify Function processes subscription:
+   - Creates subscriber in MailerLite API
+   - MailerLite sends confirmation email (double opt-in)
+   - User confirms via email link
 5. User redirected to thank you page with Vimeo video
 6. Thank you page includes WhatsApp group invitation
 
@@ -81,34 +72,25 @@ Preferred communication style: Simple, everyday language.
 - **Font Awesome**: Icons for social media and UI elements
 
 ### Development Tools
-- **Replit Integration**: Development environment optimizations
-- **ESBuild**: Fast TypeScript compilation for production
-- **PostCSS**: CSS processing with Tailwind
+- **Vite**: Build tool con HMR y TypeScript
+- **ESBuild**: Compilación rápida de TypeScript para producción
+- **PostCSS**: Procesamiento de CSS con Tailwind
 
 ## Deployment Strategy
 
 ### Development
-- Uses Vite dev server with HMR and TypeScript checking
-- Replit-specific optimizations and error overlays
-- File watching and hot reload for rapid development
+- Servidor de desarrollo Vite con HMR y verificación TypeScript
+- File watching y hot reload para desarrollo ágil
 
 ### Production Build
 - Vite builds client-side React application
-- ESBuild compiles server TypeScript to ES modules
-- Static files served from Express with proper routing
-- Database migrations handled by Drizzle Kit
+- Netlify despliega sitio estático + funciones serverless
+- Variables de entorno configuradas en Netlify Dashboard
 
 ### Environment Configuration
-- PostgreSQL connection via DATABASE_URL
-- MailerLite API credentials (API_KEY, GROUP_ID)
-- Supports both direct env vars and VITE_ prefixed versions
-- Session configuration for production scaling
-
-### Database Management
-- Drizzle ORM with PostgreSQL dialect
-- Schema migrations in `/migrations` directory
-- Push command for development schema updates
-- Prepared for production database provisioning
+- `MAILERLITE_API_KEY`: API key de MailerLite
+- `MAILERLITE_GROUP_ID`: ID del grupo de suscriptores
+- Configuración en Netlify: Site settings → Environment variables
 
 The application follows a spiritual wellness theme with purple/blue gradients, mystical animations, and Spanish language content targeting Latin American women seeking spiritual transformation.
 
@@ -180,6 +162,11 @@ The application follows a spiritual wellness theme with purple/blue gradients, m
 - ✅ Updated subscription flow to redirect to /ultimo-paso for confirmation instructions
 - ✅ Enhanced glassmorphism backgrounds with darker, more opaque styling for better text contrast
 - ✅ Full automation: registration → MailerLite email → confirmation → webhook → group assignment → welcome automation
+
+### February 2026 - Migration to Netlify
+- ✅ Migrated from Express server to Netlify Functions
+- ✅ Newsletter subscription via serverless functions
+- ✅ Deploy automático desde Git
 
 ### Current Status
 - Landing page fully functional with spiritual theme

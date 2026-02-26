@@ -43,7 +43,7 @@ export default function MembresiaPage() {
 
   const subscriptionMutation = useMutation({
     mutationFn: async (data: Omit<SubscriptionForm, "terms">) => {
-      const response = await apiRequest("POST", "/api/subscribe", data);
+      const response = await apiRequest("POST", "/.netlify/functions/subscribe", data);
       return response.json();
     },
     onSuccess: (data) => {

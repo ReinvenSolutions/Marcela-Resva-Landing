@@ -24,7 +24,7 @@ export default function EmailConfirmacion() {
   const confirmSubscription = async (subscriberId: string, token: string) => {
     setIsConfirming(true);
     try {
-      const response = await fetch('/api/confirm-subscription', {
+      const response = await fetch('/.netlify/functions/confirm-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
