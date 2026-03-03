@@ -132,49 +132,14 @@ export default function MembresiaPage() {
                   <div className="grid md:grid-cols-2 gap-8 items-center">
                     <div className="space-y-6">
                       <p className="text-white text-lg leading-relaxed">
-                        Hace más de diez años atravesé una ruptura que me llevó a uno de los momentos más oscuros de mi vida.
-                        <br /><br />
-                        No solo se rompió una relación…
-                        <br />
-                        también se rompió la forma en la que me estaba habitando.
+                        Hace más de diez años atravesé una ruptura que me llevó a uno de los momentos más profundos de mi vida. En ese proceso comprendí que no podía seguir desconectada de mi cuerpo ni de la divinidad que me sostenía.
                       </p>
                       <p className="text-white text-lg leading-relaxed">
-                        En ese vacío apareció una certeza silenciosa:
-                        <br />
-                        ya no podía seguir viviendo desconectada de mí,
-                        <br />
-                        de mi cuerpo,
-                        <br />
-                        ni de la divinidad que me sostenía incluso cuando no sabía cómo pedir ayuda.
+                        Mi sanación fue corporal, consciente y transformadora.
+                        De ese camino nació Shifting Souls, un espacio para acompañar a mujeres en su proceso de reconexión, sanación del útero y expansión de conciencia.
                       </p>
                       <p className="text-white text-lg leading-relaxed">
-                        Mi proceso de sanación no fue lineal ni rápido.
-                        <br />
-                        Fue profundo.
-                        <br />
-                        Fue corporal.
-                        <br />
-                        Fue un regreso lento y amoroso a mi centro.
-                      </p>
-                      <p className="text-white text-lg leading-relaxed">
-                        Ahí nació Shifting Souls.
-                        <br />
-                        No como un proyecto,
-                        <br />
-                        sino como un espacio vivo para acompañar a otras mujeres
-                        <br />
-                        en su propio camino de sanación, conexión y recuerdo.
-                      </p>
-                      <p className="text-white text-lg leading-relaxed">
-                        Con los años entendí algo esencial:
-                        <br />
-                        la sanación no ocurre solo en la mente.
-                        <br />
-                        Ocurre en el cuerpo.
-                        <br />
-                        En el útero.
-                        <br />
-                        En la forma en la que abrimos el canal para sostener vida, ideas, procesos y nuevas versiones de nosotras mismas.
+                        Hoy acompaño a mujeres a recordar que la verdadera sanación ocurre en el cuerpo, en el alma y en la forma en que elegimos habitar nuestra vida.
                       </p>
                     </div>
                     <div className="flex flex-col items-center">
