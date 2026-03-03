@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { VimeoPlayer } from '@/components/ui/vimeo-player';
 import { ParticleBackground } from '@/components/ui/particles';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { apiRequest } from '@/lib/queryClient';
 import { useLocation } from 'wouter';
 import marcelaPhoto from "@/assets/22_1752622341890.jpg";
@@ -118,19 +118,11 @@ export default function MembresiaPage() {
           <div className="space-y-8 text-center">
               <div className="space-y-6">
                 <h1 className="text-3xl lg:text-4xl font-cormorant font-bold leading-tight" style={{color: '#f6e3eb'}}>
-                  Esa incomodidad que no sabes explicar, esa ansiedad sutil o ese cansancio que no se va con descanso… Son mensajes que vas a saber interpretar.
+                  Sanación del útero, conexión con tu ser y guía divina para sostener vida desde la conciencia.
                 </h1>
                 <p className="text-xl text-white/95 leading-relaxed">
-                  Sentir plenitud, vivir tu misión de vida y transformar el dolor en poder interior serán destrezas que vas a adquirir en nuestra casita… La casita de Shifting Souls.
+                  un espacio para mujeres que están listas para sanar, recordar y caminar con conciencia femenina, encontrando la sabiduría en su cuerpo, en su útero y en su tiempo divino.
                 </p>
-              </div>
-
-              {/* Video Section */}
-              <div className="relative">
-                <div className="absolute -inset-4 rounded-3xl blur-2xl" style={{background: 'linear-gradient(to right, rgba(178, 173, 168, 0.3), rgba(187, 165, 161, 0.3))'}}></div>
-                <div className="relative bg-white/20 backdrop-blur-lg rounded-3xl p-8 border border-white/30 shadow-xl">
-                  <VimeoPlayer videoId="1101675966" title="Bienvenida Comunidad" />
-                </div>
               </div>
 
               {/* Story Section */}
@@ -140,10 +132,49 @@ export default function MembresiaPage() {
                   <div className="grid md:grid-cols-2 gap-8 items-center">
                     <div className="space-y-6">
                       <p className="text-white text-lg leading-relaxed">
-                        Hace 10 años yo estaba pasando por un divorcio que me rompió y ahí llegó de nuevo esa sensación de estar pérdida… Pero también llegó la certeza de que ya no podía seguir viviendo igual.
+                        Hace más de diez años atravesé una ruptura que me llevó a uno de los momentos más oscuros de mi vida.
+                        <br /><br />
+                        No solo se rompió una relación…
+                        <br />
+                        también se rompió la forma en la que me estaba habitando.
                       </p>
                       <p className="text-white text-lg leading-relaxed">
-                        Justo ahí nació nuestra comunidad hace 10 años, Shifting Souls nace en medio del deseo de traerles la sanación que yo estaba vivenciando y esa conexión con la divinidad.
+                        En ese vacío apareció una certeza silenciosa:
+                        <br />
+                        ya no podía seguir viviendo desconectada de mí,
+                        <br />
+                        de mi cuerpo,
+                        <br />
+                        ni de la divinidad que me sostenía incluso cuando no sabía cómo pedir ayuda.
+                      </p>
+                      <p className="text-white text-lg leading-relaxed">
+                        Mi proceso de sanación no fue lineal ni rápido.
+                        <br />
+                        Fue profundo.
+                        <br />
+                        Fue corporal.
+                        <br />
+                        Fue un regreso lento y amoroso a mi centro.
+                      </p>
+                      <p className="text-white text-lg leading-relaxed">
+                        Ahí nació Shifting Souls.
+                        <br />
+                        No como un proyecto,
+                        <br />
+                        sino como un espacio vivo para acompañar a otras mujeres
+                        <br />
+                        en su propio camino de sanación, conexión y recuerdo.
+                      </p>
+                      <p className="text-white text-lg leading-relaxed">
+                        Con los años entendí algo esencial:
+                        <br />
+                        la sanación no ocurre solo en la mente.
+                        <br />
+                        Ocurre en el cuerpo.
+                        <br />
+                        En el útero.
+                        <br />
+                        En la forma en la que abrimos el canal para sostener vida, ideas, procesos y nuevas versiones de nosotras mismas.
                       </p>
                     </div>
                     <div className="flex flex-col items-center">
@@ -171,32 +202,29 @@ export default function MembresiaPage() {
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-8">
             <h2 className="text-4xl font-cormorant font-bold mb-6" style={{color: '#f6e3eb'}}>
-              ¿Por qué esa "Sensación de Vacío" puede ser el portal hacia Sentirte Totalmente Plena?
+              Aquí puedes caminar tu proceso acompañada:
+              <br />
+              Desde el útero, desde la conciencia
             </h2>
             
             <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 max-w-4xl mx-auto text-left">
               <div className="space-y-4 text-white text-lg leading-relaxed">
-                <p>Cuando los árboles sueltan sus hojas en otoño y atraviesan un invierno en aparente vacío</p>
-                <p>No florecen, no dan frutos, parecen inertes…</p>
-                <p>Pero en ese tiempo, lo esencial ocurre bajo tierra, en las raíces.</p>
-                <p className="font-bold">Sin ese vacío aparente, no habría primavera.</p>
-                <p>El vacío en nosotras se puede extender en tiempo y/o longitud, pero siempre, siempre llegará la primavera.</p>
-                <p className="font-semibold">En nuestro hogar también vivenciarás ese vacío, la DIFERENCIA radica en:</p>
-                
-                <ul className="space-y-3 mt-6">
-                  <li className="flex items-start">
-                    <span className="mr-3 text-yellow-300 font-bold">•</span>
-                    <span>Si prefieres transitarlo acompañada o transitarlo en soledad.</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-3 text-yellow-300 font-bold">•</span>
-                    <span>Quieres que se sienta como un salto cuántico o esperar y que quizás se vuelva una eternidad.</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-3 text-yellow-300 font-bold">•</span>
-                    <span>Que tu proceso sea exigente pero sepas tomar acción o que el vacío se haga tan grande que sientas que no lo vas a lograr.</span>
-                  </li>
-                </ul>
+                <p>
+                  Es una entrega viva, guiada por la divinidad que acompaña a esta comunidad,
+                  sosteniéndonos y mostrándonos, mes a mes,
+                  las vibraciones y frecuencias que cada una necesita para su proceso.
+                </p>
+                <p>
+                  Aquí la divinidad camina con nosotras.
+                  Nos guía con amor, nos asiste en el tránsito
+                  y nos recuerda que no estamos solas mientras sanamos.
+                </p>
+                <p>
+                  Este espacio existe porque hay una escucha constante,
+                  una guía amorosa que se manifiesta en el campo energético del grupo
+                  y una intención profunda de atravesar cada proceso
+                  con respeto por el cuerpo, el útero y el tiempo de cada alma.
+                </p>
               </div>
             </div>
           </div>
@@ -208,7 +236,7 @@ export default function MembresiaPage() {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-8">
             <h2 className="text-4xl font-cormorant font-bold mb-6" style={{color: '#f6e3eb'}}>
-              ¿Qué lograrás en nuestra casita?
+              ¿Qué se transforma cuando caminas este espacio?
             </h2>
             
             <div className="grid md:grid-cols-3 gap-8">
@@ -223,7 +251,7 @@ export default function MembresiaPage() {
                     <i className="fas fa-heart text-white text-2xl"></i>
                   </div>
                   <p className="leading-relaxed text-white text-lg">
-                    Liberar a las futuras generaciones de cargar con el peso del trabajo personal que te corresponde a ti.
+                    Sanar memorias que no te pertenecen
                   </p>
                 </div>
               </div>
@@ -239,7 +267,7 @@ export default function MembresiaPage() {
                     <i className="fas fa-star text-white text-2xl"></i>
                   </div>
                   <p className="leading-relaxed text-white text-lg">
-                    Probar tu potencial y vivir a la altura de él.
+                    Recordar tu poder sin forzarte
                   </p>
                 </div>
               </div>
@@ -255,7 +283,7 @@ export default function MembresiaPage() {
                     <i className="fas fa-bolt text-white text-2xl"></i>
                   </div>
                   <p className="leading-relaxed text-white text-lg">
-                    Usar tus momentos más oscuros para salir a la luz con superpoderes.
+                    Transmutar lo vivido en sabiduría
                   </p>
                 </div>
               </div>
@@ -279,8 +307,8 @@ export default function MembresiaPage() {
                   e.currentTarget.style.color = '#976e73';
                 }}
               >
-                <span className="block sm:hidden">Únete a la Comunidad</span>
-                <span className="hidden sm:block">Únete a la Comunidad</span>
+                <span className="block sm:hidden">Entrar a la comunidad</span>
+                <span className="hidden sm:block">Entrar a la comunidad</span>
               </Button>
             </div>
           </div>
@@ -292,7 +320,7 @@ export default function MembresiaPage() {
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-8">
             <h2 className="text-4xl font-cormorant font-bold mb-6" style={{color: '#f6e3eb'}}>
-              MODALIDADES Y COSTOS DE MEMBRESÍA
+              Formas de sostener tu proceso en la comunidad
             </h2>
             
             <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
@@ -307,7 +335,7 @@ export default function MembresiaPage() {
                     <span className="text-white/80 text-lg block">por mes</span>
                   </div>
                   <p className="text-white/90 mb-6">
-                    Flexibilidad total para tu transformación espiritual
+                    Un espacio flexible para acompañar tu proceso, respetando tus tiempos y tus ciclos.
                   </p>
                   <Button 
                     onClick={() => window.open('https://academy.marcelaresva.com/step/checkout-membresia/', '_blank')}
@@ -326,7 +354,7 @@ export default function MembresiaPage() {
                       e.currentTarget.style.color = '#976e73';
                     }}
                   >
-                    Unirme a la Comunidad
+                    Habitar este espacio
                   </Button>
                 </div>
               </div>
@@ -348,7 +376,7 @@ export default function MembresiaPage() {
                     <span className="text-white/60 text-sm line-through">$203.94</span>
                   </div>
                   <p className="text-white/90 mb-6">
-                    Compromiso profundo con tu crecimiento espiritual • Ahorra 1 mes
+                    Una decisión consciente de sostener tu proceso con continuidad y acompañamiento. Incluye un mes de acompañamiento como regalo.
                   </p>
                   <Button 
                     onClick={() => window.open('https://academy.marcelaresva.com/step/checkout-membresia/', '_blank')}
@@ -367,7 +395,7 @@ export default function MembresiaPage() {
                       e.currentTarget.style.color = '#976e73';
                     }}
                   >
-                    Unirme a la Comunidad
+                    Habitar este espacio
                   </Button>
                 </div>
               </div>
@@ -445,6 +473,95 @@ export default function MembresiaPage() {
         </div>
       </section>
 
+      {/* Preguntas y Respuestas */}
+      <section className="py-8 px-4">
+        <div className="container mx-auto max-w-4xl">
+          <h2 className="text-4xl font-cormorant font-bold mb-8 text-center" style={{color: '#f6e3eb'}}>
+            Tal vez te estés preguntando…
+          </h2>
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="1" className="border-white/20">
+                <AccordionTrigger className="text-left text-white hover:text-yellow-200 hover:no-underline py-6 text-lg font-medium">
+                  ¿Esta membresía es para mí si no quiero ser madre?
+                </AccordionTrigger>
+                <AccordionContent className="text-white/95 text-base leading-relaxed">
+                  <p className="mb-4">Sí.</p>
+                  <p>Este espacio no está enfocado únicamente en la maternidad física. Trabajamos la sanación del útero como centro de creación, sostén y vida: ideas, proyectos, procesos personales, vínculos y nuevas versiones de ti.</p>
+                  <p className="mt-4">Aquí se honra a la mujer en todas sus formas de crear.</p>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="2" className="border-white/20">
+                <AccordionTrigger className="text-left text-white hover:text-yellow-200 hover:no-underline py-6 text-lg font-medium">
+                  ¿Necesito tener experiencia previa en procesos espirituales?
+                </AccordionTrigger>
+                <AccordionContent className="text-white/95 text-base leading-relaxed">
+                  <p className="mb-4">No necesitas "saber más".</p>
+                  <p>Solo sentir el llamado a escucharte, a sanar con conciencia y a caminar tu proceso con respeto.</p>
+                  <p className="mt-4">Este espacio no exige, acompaña.</p>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="3" className="border-white/20">
+                <AccordionTrigger className="text-left text-white hover:text-yellow-200 hover:no-underline py-6 text-lg font-medium">
+                  ¿Qué tipo de contenido recibiré dentro de la membresía?
+                </AccordionTrigger>
+                <AccordionContent className="text-white/95 text-base leading-relaxed">
+                  <p>Recibirás sanaciones, cápsulas de introspección, activaciones energéticas y espacios de acompañamiento guiados desde la divinidad, alineados con la energía de cada mes.</p>
+                  <p className="mt-4">No es contenido grabado al azar. Es una entrega viva que responde al momento que estamos transitando como comunidad.</p>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="4" className="border-white/20">
+                <AccordionTrigger className="text-left text-white hover:text-yellow-200 hover:no-underline py-6 text-lg font-medium">
+                  ¿Esto reemplaza terapia o acompañamiento psicológico?
+                </AccordionTrigger>
+                <AccordionContent className="text-white/95 text-base leading-relaxed">
+                  <p className="mb-4">No.</p>
+                  <p>Este espacio no reemplaza procesos médicos o psicológicos. Es un complemento espiritual y energético que puede acompañar y profundizar tu proceso personal desde otro plano.</p>
+                  <p className="mt-4">Honramos todos los caminos de sanación.</p>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="5" className="border-white/20">
+                <AccordionTrigger className="text-left text-white hover:text-yellow-200 hover:no-underline py-6 text-lg font-medium">
+                  ¿Qué pasa si entro y luego siento que necesito pausar?
+                </AccordionTrigger>
+                <AccordionContent className="text-white/95 text-base leading-relaxed">
+                  <p className="mb-4">Está bien.</p>
+                  <p>Puedes cancelar o pausar tu membresía cuando lo necesites.</p>
+                  <p className="mt-4">Aquí no hay compromiso forzado. La sanación no se sostiene desde la presión, sino desde la elección consciente.</p>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="6" className="border-white/20">
+                <AccordionTrigger className="text-left text-white hover:text-yellow-200 hover:no-underline py-6 text-lg font-medium">
+                  ¿Tengo que participar activamente o mostrarme?
+                </AccordionTrigger>
+                <AccordionContent className="text-white/95 text-base leading-relaxed">
+                  <p className="mb-4">No.</p>
+                  <p>Puedes habitar este espacio de forma silenciosa, a tu ritmo, como tu cuerpo lo pida.</p>
+                  <p className="mt-4">La presencia no siempre es visible, y eso también es válido.</p>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="7" className="border-white/20">
+                <AccordionTrigger className="text-left text-white hover:text-yellow-200 hover:no-underline py-6 text-lg font-medium">
+                  ¿Por cuánto tiempo debería quedarme en la membresía?
+                </AccordionTrigger>
+                <AccordionContent className="text-white/95 text-base leading-relaxed">
+                  <p>No hay un tiempo "correcto". Algunas mujeres llegan por un momento específico, otras se quedan más tiempo.</p>
+                  <p className="mt-4">Confía en tu sentir. Tu cuerpo sabrá cuándo entrar y cuándo es el momento de partir.</p>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="8" className="border-white/20">
+                <AccordionTrigger className="text-left text-white hover:text-yellow-200 hover:no-underline py-6 text-lg font-medium">
+                  ¿Qué hace diferente a este espacio?
+                </AccordionTrigger>
+                <AccordionContent className="text-white/95 text-base leading-relaxed">
+                  <p>Porque está guiado desde una conexión directa con la divinidad, escuchando lo que cada proceso necesita sin forzarlo, y permitiendo que la sanación ocurra desde el cuerpo, el tiempo y la conciencia.</p>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+        </div>
+      </section>
+
       {/* Final Call to Action */}
       <section className="py-4 px-4">
         <div className="container mx-auto max-w-4xl">
@@ -470,8 +587,8 @@ export default function MembresiaPage() {
                 e.currentTarget.style.color = '#976e73';
               }}
             >
-              <span className="block sm:hidden">Unirme a la Comunidad</span>
-              <span className="hidden sm:block">Unirme a la Comunidad</span>
+              <span className="block sm:hidden">Entrar a la comunidad</span>
+              <span className="hidden sm:block">Entrar a la comunidad</span>
             </Button>
           </div>
         </div>

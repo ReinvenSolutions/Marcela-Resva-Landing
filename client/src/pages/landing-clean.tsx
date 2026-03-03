@@ -13,7 +13,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ParticleBackground } from "@/components/ui/particles";
-import { VimeoPlayer } from "@/components/ui/vimeo-player";
 import marcelaLogo from "@/assets/marcela-resva-logo.webp";
 import marcelaPhoto from "@/assets/22_1752622341890.jpg";
 import shiftingSoulsLogo from "@assets/IMG_0195-e1752623802409_1752623855399.webp";
@@ -191,17 +190,8 @@ export default function Landing() {
             </p>
           </div>
 
-          {/* Video and Form Section */}
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
-            {/* Left Column - Video */}
-            <div className="relative pt-12">
-              <div className="absolute -inset-4 rounded-3xl blur-2xl" style={{background: 'linear-gradient(to right, rgba(178, 173, 168, 0.3), rgba(187, 165, 161, 0.3))'}}></div>
-              <div className="relative bg-white/20 backdrop-blur-lg rounded-3xl p-8 border border-white/30 shadow-xl">
-                <VimeoPlayer videoId="1101676211" title="Landing page Aprobada" />
-              </div>
-            </div>
-
-            {/* Right Column - Form */}
+          {/* Form Section */}
+          <div className="max-w-xl mx-auto">
             <div className="relative z-10">
               <div className="bg-white/90 backdrop-blur-lg rounded-3xl p-8 border border-white/60 shadow-xl">
                 <div className="text-center mb-6">
