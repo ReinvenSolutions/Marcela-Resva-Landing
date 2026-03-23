@@ -100,7 +100,7 @@ export default function MembresiaPage() {
               <a href="#community" className="hover:opacity-80 transition-opacity" style={{color: '#f6e3eb'}}>
                 Comunidad
               </a>
-              <a href="https://academy.marcelaresva.com/step/checkout-membresia/" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity" style={{color: '#f6e3eb'}}>
+              <a href="https://academy.marcelaresva.com/acceso-a-shifting-souls-membership/" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity" style={{color: '#f6e3eb'}}>
                 Únete
               </a>
               <span className="text-white/60">|</span>
@@ -256,7 +256,7 @@ export default function MembresiaPage() {
             
             <div className="mt-8">
               <Button 
-                onClick={() => window.open('https://academy.marcelaresva.com/step/checkout-membresia/', '_blank')}
+                onClick={() => window.open('https://academy.marcelaresva.com/acceso-a-shifting-souls-membership/', '_blank')}
                 className="px-6 md:px-12 py-4 rounded-full font-bold hover:shadow-lg transition-all duration-300 transform hover:scale-105 border-2 text-lg md:text-xl"
                 style={{
                   backgroundColor: '#f6e3eb',
@@ -303,7 +303,7 @@ export default function MembresiaPage() {
                     Un espacio flexible para acompañar tu proceso, respetando tus tiempos y tus ciclos.
                   </p>
                   <Button 
-                    onClick={() => window.open('https://academy.marcelaresva.com/step/checkout-membresia/', '_blank')}
+                    onClick={() => window.open('https://academy.marcelaresva.com/acceso-a-shifting-souls-membership/', '_blank')}
                     className="w-full py-3 rounded-full font-bold hover:shadow-lg transition-all duration-300 transform hover:scale-105 border-2"
                     style={{
                       backgroundColor: '#f6e3eb',
@@ -344,7 +344,7 @@ export default function MembresiaPage() {
                     Una decisión consciente de sostener tu proceso con continuidad y acompañamiento. Incluye un mes de acompañamiento como regalo.
                   </p>
                   <Button 
-                    onClick={() => window.open('https://academy.marcelaresva.com/step/checkout-membresia/', '_blank')}
+                    onClick={() => window.open('https://academy.marcelaresva.com/acceso-a-shifting-souls-membership/', '_blank')}
                     className="w-full py-3 rounded-full font-bold hover:shadow-lg transition-all duration-300 transform hover:scale-105 border-2"
                     style={{
                       backgroundColor: '#f6e3eb',
@@ -536,7 +536,7 @@ export default function MembresiaPage() {
             </h2>
             
             <Button 
-              onClick={() => window.open('https://academy.marcelaresva.com/step/checkout-membresia/', '_blank')}
+              onClick={() => window.open('https://academy.marcelaresva.com/acceso-a-shifting-souls-membership/', '_blank')}
               className="px-8 md:px-16 py-4 md:py-6 rounded-full font-bold hover:shadow-lg transition-all duration-300 transform hover:scale-105 border-2 text-lg md:text-2xl"
               style={{
                 backgroundColor: '#f6e3eb',
