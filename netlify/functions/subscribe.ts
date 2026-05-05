@@ -1,11 +1,19 @@
 import { Handler } from '@netlify/functions';
 import { z } from 'zod';
+import { WAITLIST_MEMBRESIA_GROUP_ID } from './mailerliteWaitlistGroup';
 
 const subscribeSchema = z.object({
   firstName: z.string(),
-  email: z.string().email()
+  email: z.string().email(),
+  /** Origen: env + fallback al grupo lista de espera en MailerLite */
+  source: z.enum(['waitlist_membresia']).optional()
 });
 
+/**
+ * Lista de espera (/membresia): double opt-in en MailerLite + opcional confirmación en sitio.
+ * Si quieres que /email-confirmacion asigne bien el grupo, el enlace debe incluir
+ * ?subscriber_id=…&token=…&source=waitlist_membresia (según lo que permita tu plantilla MailerLite).
+ */
 export const handler: Handler = async (event) => {
   console.log('=== INICIO DE FUNCIÓN SUBSCRIBE ===');
   console.log('Método HTTP:', event.httpMethod);
@@ -26,13 +34,14 @@ export const handler: Handler = async (event) => {
 
     // Obtener configuración de variables de entorno
     const mailerLiteApiKey = process.env.MAILERLITE_API_KEY;
-    const mailerLiteGroupId = process.env.MAILERLITE_GROUP_ID;
+    const isWaitlist = validatedData.source === 'waitlist_membresia';
+    const defaultGroupId = process.env.MAILERLITE_GROUP_ID;
+    const mailerLiteGroupId = isWaitlist ? WAITLIST_MEMBRESIA_GROUP_ID : defaultGroupId;
 
     console.log('Variables de entorno:');
     console.log('- API Key existe:', !!mailerLiteApiKey);
-    console.log('- API Key longitud:', mailerLiteApiKey?.length || 0);
-    console.log('- Group ID existe:', !!mailerLiteGroupId);
-    console.log('- Group ID valor:', mailerLiteGroupId);
+    console.log('- Origen suscripción:', isWaitlist ? 'lista_espera_membresia' : 'newsletter_default');
+    console.log('- Group ID en uso:', !!mailerLiteGroupId);
 
     if (!mailerLiteApiKey) {
       console.error('❌ MailerLite API key is missing!');
@@ -101,7 +110,9 @@ export const handler: Handler = async (event) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          message: '¡Registro exitoso! Revisa tu email para confirmar tu suscripción.',
+          message: isWaitlist
+            ? '¡Listo! Revisa tu correo para confirmar y quedar en la lista de espera de la membresía.'
+            : '¡Registro exitoso! Revisa tu email para confirmar tu suscripción.',
           subscriber: {
             id: mailerLiteData.data?.id,
             firstName: validatedData.firstName,
@@ -119,7 +130,9 @@ export const handler: Handler = async (event) => {
         return {
           statusCode: 400,
           body: JSON.stringify({
-            message: 'Este email ya está registrado en nuestra newsletter'
+            message: isWaitlist
+              ? 'Este correo ya está registrado o en proceso de confirmación para la lista de espera.'
+              : 'Este email ya está registrado en nuestra newsletter'
           })
         };
       }

@@ -15,13 +15,19 @@ export default function EmailConfirmacion() {
     const urlParams = new URLSearchParams(window.location.search);
     const subscriberId = urlParams.get('subscriber_id');
     const token = urlParams.get('token');
+    const source =
+      urlParams.get('source') === 'waitlist_membresia' ? 'waitlist_membresia' : undefined;
 
     if (subscriberId && token) {
-      confirmSubscription(subscriberId, token);
+      confirmSubscription(subscriberId, token, source);
     }
   }, []);
 
-  const confirmSubscription = async (subscriberId: string, token: string) => {
+  const confirmSubscription = async (
+    subscriberId: string,
+    token: string,
+    source?: 'waitlist_membresia',
+  ) => {
     setIsConfirming(true);
     try {
       const response = await fetch('/.netlify/functions/confirm-subscription', {
@@ -29,14 +35,21 @@ export default function EmailConfirmacion() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ subscriberId, token }),
+        body: JSON.stringify({
+          subscriberId,
+          token,
+          ...(source ? { source } : {}),
+        }),
       });
 
       if (response.ok) {
         setConfirmed(true);
-        // Redirect to confirmed page after 3 seconds
+        const next =
+          source === 'waitlist_membresia'
+            ? '/email-ya-confirmado?from=lista-espera-membresia'
+            : '/email-ya-confirmado';
         setTimeout(() => {
-          navigate('/email-ya-confirmado');
+          navigate(next);
         }, 3000);
       } else {
         setError('Error al confirmar la suscripción. Por favor intenta de nuevo.');

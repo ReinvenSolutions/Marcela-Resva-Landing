@@ -1,10 +1,14 @@
 import { ParticleBackground } from "@/components/ui/particles";
 import { Button } from "@/components/ui/button";
 import marcelaLogo from "@assets/Marcela-ResVa-05-e1752018349922_1752620492878.webp";
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function ThankYou() {
+  const [listaEsperaMembresia, setListaEsperaMembresia] = useState(false);
+
   useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    setListaEsperaMembresia(q.get('from') === 'lista-espera-membresia');
     window.scrollTo(0, 0);
   }, []);
 
@@ -41,10 +45,14 @@ export default function ThankYou() {
             <div className="relative backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-xl" style={{backgroundColor: 'rgba(151, 110, 115, 0.7)'}}>
               <div className="text-center space-y-6">
                 <h2 className="text-3xl lg:text-4xl font-cormorant font-bold leading-tight mb-6 text-white">
-                  TODAVÍA NO ESTÁS SUSCRITA EN LA LISTA
+                  {listaEsperaMembresia
+                    ? 'UN ÚLTIMO PASO PARA QUEDAR EN LA LISTA DE ESPERA'
+                    : 'TODAVÍA NO ESTÁS SUSCRITA EN LA LISTA'}
                 </h2>
                 <p className="text-xl text-white leading-relaxed mb-6 font-medium">
-                  Solo revisa el correo que te acabo de enviar a la dirección que me dejaste y haz clic en el enlace de confirmación.
+                  {listaEsperaMembresia
+                    ? 'Te enviamos un correo a la dirección que nos dejaste. Ábrelo y haz clic en el enlace de confirmación: así sabemos que es tu mail de verdad y te podremos avisar cuando abramos de nuevo la membresía.'
+                    : 'Solo revisa el correo que te acabo de enviar a la dirección que me dejaste y haz clic en el enlace de confirmación.'}
                 </p>
                 
                 <div className="backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/30 shadow-xl" style={{backgroundColor: 'rgba(174, 102, 125, 0.7)'}}>
@@ -62,7 +70,9 @@ export default function ThankYou() {
                 <div className="border-2 border-yellow-300 rounded-2xl p-6" style={{backgroundColor: 'rgba(176, 145, 150, 0.8)'}}>
                   <h3 className="text-xl font-bold text-yellow-300 mb-4">MUY IMPORTANTE</h3>
                   <p className="text-white leading-relaxed font-medium">
-                    Una vez confirmes tu suscripción, se abrirá una nueva página donde recibirás tus regalos.
+                    {listaEsperaMembresia
+                      ? 'Sin ese clic de confirmación no quedas registrada en la lista de espera. Si no ves el correo en unos minutos, mira también spam o promociones.'
+                      : 'Una vez confirmes tu suscripción, se abrirá una nueva página donde recibirás tus regalos.'}
                   </p>
                 </div>
               </div>

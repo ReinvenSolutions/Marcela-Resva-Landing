@@ -1,10 +1,14 @@
 import { ParticleBackground } from "@/components/ui/particles";
 import { Button } from "@/components/ui/button";
 import marcelaLogo from "@assets/Marcela-ResVa-05-e1752018349922_1752620492878.webp";
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function EmailYaConfirmado() {
+  const [listaEsperaMembresia, setListaEsperaMembresia] = useState(false);
+
   useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    setListaEsperaMembresia(q.get('from') === 'lista-espera-membresia');
     window.scrollTo(0, 0);
   }, []);
 
@@ -45,19 +49,35 @@ export default function EmailYaConfirmado() {
                 </div>
                 
                 <h2 className="text-3xl lg:text-4xl font-cormorant font-bold leading-tight mb-6 text-white">
-                  TU EMAIL YA ESTÁ CONFIRMADO
+                  {listaEsperaMembresia
+                    ? 'LISTO: YA ESTÁS EN LA LISTA DE ESPERA'
+                    : 'TU EMAIL YA ESTÁ CONFIRMADO'}
                 </h2>
                 
                 <div className="space-y-6">
-                  <p className="text-xl text-white leading-relaxed font-medium">
-                    Ahora vas a recibir un correo titulado <span className="text-yellow-300 font-bold">"Bienvenida… disfruta tus regalos"</span> donde tendrás acceso a lo prometido.
-                  </p>
-                  
-                  <div className="backdrop-blur-lg rounded-2xl p-6 border border-white/30 shadow-xl" style={{backgroundColor: 'rgba(174, 102, 125, 0.7)'}}>
-                    <p className="text-white leading-relaxed font-medium text-lg">
-                      Revisa tu bandeja de entrada en los próximos minutos. Si no lo encuentras, verifica tu carpeta de spam.
-                    </p>
-                  </div>
+                  {listaEsperaMembresia ? (
+                    <>
+                      <p className="text-xl text-white leading-relaxed font-medium">
+                        Gracias por confirmar. Cuando volvamos a abrir inscripciones a la membresía Shifting Souls, te avisaremos a este correo. Mientras tanto, cuida tu bandeja (y el spam, por si acaso).
+                      </p>
+                      <div className="backdrop-blur-lg rounded-2xl p-6 border border-white/30 shadow-xl" style={{backgroundColor: 'rgba(174, 102, 125, 0.7)'}}>
+                        <p className="text-white leading-relaxed font-medium text-lg">
+                          No hace falta hacer nada más por ahora. Si en el futuro quieres dejar de recibir avisos sobre la membresía, podrás darte de baja desde el mismo correo.
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xl text-white leading-relaxed font-medium">
+                        Ahora vas a recibir un correo titulado <span className="text-yellow-300 font-bold">"Bienvenida… disfruta tus regalos"</span> donde tendrás acceso a lo prometido.
+                      </p>
+                      <div className="backdrop-blur-lg rounded-2xl p-6 border border-white/30 shadow-xl" style={{backgroundColor: 'rgba(174, 102, 125, 0.7)'}}>
+                        <p className="text-white leading-relaxed font-medium text-lg">
+                          Revisa tu bandeja de entrada en los próximos minutos. Si no lo encuentras, verifica tu carpeta de spam.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="pt-6">

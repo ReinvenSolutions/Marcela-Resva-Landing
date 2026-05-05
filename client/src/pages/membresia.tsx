@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,8 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
 import { ParticleBackground } from '@/components/ui/particles';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { apiRequest } from '@/lib/queryClient';
@@ -16,63 +15,56 @@ import { useLocation } from 'wouter';
 import marcelaPhoto from "@/assets/22_1752622341890.jpg";
 import shiftingSoulsLogo from "@assets/IMG_0195-e1752623802409_1752623855399.webp";
 
-const subscriptionSchema = z.object({
+const waitlistSchema = z.object({
   firstName: z.string().min(1, 'El nombre es requerido'),
-  lastName: z.string().optional(),
   email: z.string().email('Email inválido'),
-  currentMoment: z.string().min(1, 'Por favor selecciona una opción'),
   terms: z.boolean().refine(val => val === true, 'Debes aceptar los términos')
 });
 
-type SubscriptionForm = z.infer<typeof subscriptionSchema>;
+type WaitlistForm = z.infer<typeof waitlistSchema>;
 
 export default function MembresiaPage() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const form = useForm<SubscriptionForm>({
-    resolver: zodResolver(subscriptionSchema),
+  const form = useForm<WaitlistForm>({
+    resolver: zodResolver(waitlistSchema),
     defaultValues: {
       firstName: '',
-      lastName: '',
       email: '',
-      currentMoment: '',
       terms: false,
     },
   });
 
-  const subscriptionMutation = useMutation({
-    mutationFn: async (data: Omit<SubscriptionForm, "terms">) => {
-      const response = await apiRequest("POST", "/.netlify/functions/subscribe", data);
+  const waitlistMutation = useMutation({
+    mutationFn: async (data: Omit<WaitlistForm, 'terms'>) => {
+      const response = await apiRequest("POST", "/.netlify/functions/subscribe", {
+        firstName: data.firstName,
+        email: data.email,
+        source: 'waitlist_membresia' as const,
+      });
       return response.json();
     },
     onSuccess: (data) => {
       toast({
-        title: "¡Bienvenida a Shifting Souls!",
+        title: "¡Casi listo!",
         description: data.message,
       });
-      setLocation('/gracias');
+      setLocation('/ultimo-paso?from=lista-espera-membresia');
     },
     onError: (error: any) => {
-      console.error('Subscription error:', error);
+      console.error('Waitlist error:', error);
       toast({
         title: "Error",
-        description: error.message || "Hubo un problema al procesar tu suscripción. Inténtalo de nuevo.",
+        description: error.message || "Hubo un problema al enviar tus datos. Inténtalo de nuevo.",
         variant: "destructive",
       });
     },
   });
 
-  const onSubmit = (data: SubscriptionForm) => {
-    const { terms, ...subscriptionData } = data;
-    subscriptionMutation.mutate(subscriptionData);
-  };
-
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+  const onSubmit = (data: WaitlistForm) => {
+    const { terms, ...rest } = data;
+    waitlistMutation.mutate(rest);
   };
 
   return (
@@ -100,8 +92,8 @@ export default function MembresiaPage() {
               <a href="#community" className="hover:opacity-80 transition-opacity" style={{color: '#f6e3eb'}}>
                 Comunidad
               </a>
-              <a href="https://academy.marcelaresva.com/acceso-a-shifting-souls-membership/" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity" style={{color: '#f6e3eb'}}>
-                Únete
+              <a href="#lista-espera-membresia" className="hover:opacity-80 transition-opacity" style={{color: '#f6e3eb'}}>
+                Lista de espera
               </a>
               <span className="text-white/60">|</span>
               <a href="https://academy.marcelaresva.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity text-yellow-300 font-medium">
@@ -256,7 +248,8 @@ export default function MembresiaPage() {
             
             <div className="mt-8">
               <Button 
-                onClick={() => window.open('https://academy.marcelaresva.com/acceso-a-shifting-souls-membership/', '_blank')}
+                type="button"
+                onClick={() => document.getElementById('lista-espera-membresia')?.scrollIntoView({ behavior: 'smooth' })}
                 className="px-6 md:px-12 py-4 rounded-full font-bold hover:shadow-lg transition-all duration-300 transform hover:scale-105 border-2 text-lg md:text-xl"
                 style={{
                   backgroundColor: '#f6e3eb',
@@ -272,98 +265,111 @@ export default function MembresiaPage() {
                   e.currentTarget.style.color = '#976e73';
                 }}
               >
-                <span className="block sm:hidden">Entrar a la comunidad</span>
-                <span className="hidden sm:block">Entrar a la comunidad</span>
+                <span className="block sm:hidden">Apuntarme a la lista de espera</span>
+                <span className="hidden sm:block">Apuntarme a la lista de espera</span>
               </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section className="py-8 px-4">
-        <div className="container mx-auto max-w-4xl">
+      {/* Lista de espera — membresía cerrada temporalmente */}
+      <section id="lista-espera-membresia" className="py-8 px-4 scroll-mt-24">
+        <div className="container mx-auto max-w-2xl">
           <div className="text-center mb-8">
-            <h2 className="text-4xl font-cormorant font-bold mb-6" style={{color: '#f6e3eb'}}>
-              Formas de sostener tu proceso en la comunidad
+            <h2 className="text-3xl md:text-4xl font-cormorant font-bold mb-4 leading-tight" style={{color: '#f6e3eb'}}>
+              Por ahora las inscripciones están en pausa
             </h2>
-            
-            <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-              {/* Monthly Plan */}
-              <div className="bg-white/20 backdrop-blur-lg rounded-3xl p-8 border border-white/30 shadow-xl hover:bg-white/25 transition-all duration-300 hover:transform hover:scale-105">
-                <div className="text-center">
-                  <h3 className="text-2xl font-cormorant font-bold mb-4 text-white">
-                    Mensual
-                  </h3>
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold text-yellow-300">USD $33.99</span>
-                    <span className="text-white/80 text-lg block">por mes</span>
-                  </div>
-                  <p className="text-white/90 mb-6">
-                    Un espacio flexible para acompañar tu proceso, respetando tus tiempos y tus ciclos.
-                  </p>
-                  <Button 
-                    onClick={() => window.open('https://academy.marcelaresva.com/acceso-a-shifting-souls-membership/', '_blank')}
-                    className="w-full py-3 rounded-full font-bold hover:shadow-lg transition-all duration-300 transform hover:scale-105 border-2"
-                    style={{
-                      backgroundColor: '#f6e3eb',
-                      color: '#976e73',
-                      borderColor: '#f6e3eb'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = '#bba5a1';
-                      e.currentTarget.style.color = '#f6e3eb';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f6e3eb';
-                      e.currentTarget.style.color = '#976e73';
-                    }}
-                  >
-                    Habitar este espacio
-                  </Button>
-                </div>
-              </div>
+            <div className="text-lg md:text-xl text-white/95 leading-relaxed max-w-xl mx-auto space-y-4">
+              <p>
+                Sabemos que a veces el corazón apura el paso, y nos encanta que quieras estar más cerca de este espacio.
+                Todavía no tenemos una fecha para volver a abrir plazas; cuando llegue el momento, lo haremos con calma y con mucho cuidado.
+              </p>
+              <p>
+                Si te gustaría que te avisemos en cuanto haya novedades, déjanos tus datos en la{' '}
+                <span className="text-yellow-300 font-semibold">lista de espera</span>
+                {' '}de abajo. Así no te pierdes el aviso y puedes sumarte a la comunidad cuando vuelva a ser posible.
+              </p>
+            </div>
+          </div>
 
-              {/* Semestral Plan */}
-              <div className="bg-white/20 backdrop-blur-lg rounded-3xl p-8 border-2 border-yellow-300/50 shadow-xl hover:bg-white/25 transition-all duration-300 hover:transform hover:scale-105 relative">
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-yellow-300 text-black px-4 py-2 rounded-full text-sm font-bold">
-                    Popular
-                  </span>
-                </div>
-                <div className="text-center">
-                  <h3 className="text-2xl font-cormorant font-bold mb-4 text-white">
-                    Semestral
-                  </h3>
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold text-yellow-300">USD $169.95</span>
-                    <span className="text-white/80 text-lg block">por 6 meses</span>
-                    <span className="text-white/60 text-sm line-through">$203.94</span>
-                  </div>
-                  <p className="text-white/90 mb-6">
-                    Una decisión consciente de sostener tu proceso con continuidad y acompañamiento. Incluye un mes de acompañamiento como regalo.
-                  </p>
-                  <Button 
-                    onClick={() => window.open('https://academy.marcelaresva.com/acceso-a-shifting-souls-membership/', '_blank')}
-                    className="w-full py-3 rounded-full font-bold hover:shadow-lg transition-all duration-300 transform hover:scale-105 border-2"
+          <div className="relative">
+            <div className="absolute -inset-2 rounded-3xl blur-xl opacity-40" style={{background: 'linear-gradient(to right, rgba(246, 227, 235, 0.35), rgba(187, 165, 161, 0.35))'}} />
+            <div className="relative bg-white/95 backdrop-blur-lg rounded-3xl p-8 border border-white/60 shadow-xl">
+              <h3 className="text-center text-2xl font-cormorant font-bold mb-6" style={{color: '#976e73'}}>
+                Lista de espera — membresía Shifting Souls
+              </h3>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold" style={{color: '#976e73'}}>Nombre *</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="Tu nombre"
+                            className="bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold" style={{color: '#976e73'}}>Correo electrónico *</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="email"
+                            placeholder="tu@email.com"
+                            className="bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="terms"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            className="border-gray-400 text-purple-600"
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-snug">
+                          <Label className="text-sm font-normal text-gray-700">
+                            Acepto recibir comunicaciones sobre la membresía y la lista de espera. Puedes darte de baja cuando quieras.
+                          </Label>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={waitlistMutation.isPending}
+                    className="w-full text-white font-bold py-4 rounded-xl hover:shadow-lg transition-all duration-300"
                     style={{
-                      backgroundColor: '#f6e3eb',
-                      color: '#976e73',
-                      borderColor: '#f6e3eb'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = '#bba5a1';
-                      e.currentTarget.style.color = '#f6e3eb';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f6e3eb';
-                      e.currentTarget.style.color = '#976e73';
+                      background: 'linear-gradient(to right, #ae667d, #976e73)',
+                      boxShadow: '0 10px 25px rgba(174, 102, 125, 0.3)',
                     }}
                   >
-                    Habitar este espacio
+                    {waitlistMutation.isPending ? 'Enviando…' : 'Quiero estar en la lista de espera'}
                   </Button>
-                </div>
-              </div>
+                </form>
+              </Form>
             </div>
           </div>
         </div>
@@ -531,13 +537,16 @@ export default function MembresiaPage() {
       <section className="py-4 px-4">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center">
-            <h2 className="text-4xl font-cormorant font-bold mb-6" style={{color: '#f6e3eb'}}>
-              Únete a esta red de mujeres que, como tú, están respondiendo al llamado de su verdad.
+            <h2 className="text-3xl md:text-4xl font-cormorant font-bold mb-4" style={{color: '#f6e3eb'}}>
+              No te pierdas el aviso cuando abramos de nuevo
             </h2>
-            
+            <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto leading-relaxed">
+              Cuando la membresía vuelva a abrirse, las personas en la lista de espera serán las primeras en saberlo.
+            </p>
             <Button 
-              onClick={() => window.open('https://academy.marcelaresva.com/acceso-a-shifting-souls-membership/', '_blank')}
-              className="px-8 md:px-16 py-4 md:py-6 rounded-full font-bold hover:shadow-lg transition-all duration-300 transform hover:scale-105 border-2 text-lg md:text-2xl"
+              type="button"
+              onClick={() => document.getElementById('lista-espera-membresia')?.scrollIntoView({ behavior: 'smooth' })}
+              className="px-8 md:px-16 py-4 md:py-6 rounded-full font-bold hover:shadow-lg transition-all duration-300 transform hover:scale-105 border-2 text-lg md:text-xl"
               style={{
                 backgroundColor: '#f6e3eb',
                 color: '#976e73',
@@ -552,8 +561,7 @@ export default function MembresiaPage() {
                 e.currentTarget.style.color = '#976e73';
               }}
             >
-              <span className="block sm:hidden">Entrar a la comunidad</span>
-              <span className="hidden sm:block">Entrar a la comunidad</span>
+              Ir al formulario de lista de espera
             </Button>
           </div>
         </div>
