@@ -13,11 +13,13 @@ import EmailConfirmacion from "@/pages/email-confirmacion";
 import EmailYaConfirmado from "@/pages/email-ya-confirmado";
 import Citas from "@/pages/citas";
 import Eventos from "@/pages/eventos";
+import Libro from "@/pages/libro";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/libro" component={Libro} />
       <Route path="/membresia" component={Membresia} />
       <Route path="/eventos" component={Eventos} />
       <Route path="/citas" component={Citas} />
