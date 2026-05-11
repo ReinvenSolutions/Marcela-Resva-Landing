@@ -9,6 +9,8 @@ loadRepoDotenvIfMissingStripe();
 const CHECKOUT_METADATA_PRODUCT = 'ebook_llego_mi_momento';
 const LIBRO_PRICE_USD_CENTS = 844;
 
+const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' } as const;
+
 function normalizeStripeSecret(raw: string | undefined): string {
   if (!raw) return '';
   let s = raw.trim();
@@ -35,7 +37,8 @@ function sessionAllowsDownload(session: Stripe.Checkout.Session): boolean {
 }
 
 /**
- * GET ?session_id=cs_… — Solo si la sesión de Checkout es del ebook y está pagada.
+ * GET ?session_id=cs_… — Valida el pago en Stripe y devuelve JSON con el PDF en base64.
+ * (Así evitamos que el emulador local no decodifique `isBase64Encoded` y el navegador guarde un PDF corrupto.)
  */
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'GET' && event.httpMethod !== 'HEAD') {
@@ -47,7 +50,7 @@ export const handler: Handler = async (event) => {
     console.error('download-libro-pdf: falta STRIPE_SECRET_KEY');
     return {
       statusCode: 503,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      headers: JSON_HEADERS,
       body: JSON.stringify({ message: 'Servicio no configurado' }),
     };
   }
@@ -56,7 +59,7 @@ export const handler: Handler = async (event) => {
   if (!sessionId || !sessionId.startsWith('cs_')) {
     return {
       statusCode: 400,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      headers: JSON_HEADERS,
       body: JSON.stringify({ message: 'Parámetro session_id inválido o ausente.' }),
     };
   }
@@ -70,7 +73,7 @@ export const handler: Handler = async (event) => {
     console.error('download-libro-pdf: retrieve session', e);
     return {
       statusCode: 404,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      headers: JSON_HEADERS,
       body: JSON.stringify({ message: 'No se encontró la sesión de pago.' }),
     };
   }
@@ -78,7 +81,7 @@ export const handler: Handler = async (event) => {
   if (!isLibroEbookPurchase(session)) {
     return {
       statusCode: 403,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      headers: JSON_HEADERS,
       body: JSON.stringify({ message: 'Esta sesión no corresponde al ebook.' }),
     };
   }
@@ -86,7 +89,7 @@ export const handler: Handler = async (event) => {
   if (!sessionAllowsDownload(session)) {
     return {
       statusCode: 403,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      headers: JSON_HEADERS,
       body: JSON.stringify({ message: 'El pago de esta sesión aún no está confirmado.' }),
     };
   }
@@ -94,10 +97,7 @@ export const handler: Handler = async (event) => {
   if (event.httpMethod === 'HEAD') {
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="Llego-Mi-Momento-Marcela-Resva.pdf"',
-      },
+      headers: { ...JSON_HEADERS, 'Cache-Control': 'private, no-store' },
       body: '',
     };
   }
@@ -109,7 +109,7 @@ export const handler: Handler = async (event) => {
     console.error('download-libro-pdf: leer PDF', e);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      headers: JSON_HEADERS,
       body: JSON.stringify({ message: 'No se pudo cargar el archivo del libro.' }),
     };
   }
@@ -117,11 +117,12 @@ export const handler: Handler = async (event) => {
   return {
     statusCode: 200,
     headers: {
-      'Content-Type': 'application/pdf',
+      ...JSON_HEADERS,
       'Cache-Control': 'private, no-store',
-      'Content-Disposition': 'attachment; filename="Llego-Mi-Momento-Marcela-Resva.pdf"',
     },
-    body: pdf.toString('base64'),
-    isBase64Encoded: true,
+    body: JSON.stringify({
+      filename: 'Llego-Mi-Momento-Marcela-Resva.pdf',
+      pdfBase64: pdf.toString('base64'),
+    }),
   };
 };

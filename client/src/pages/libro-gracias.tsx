@@ -4,6 +4,15 @@ import { Mail, Sparkles, Heart, Download } from "lucide-react";
 
 const PDF_FILENAME = "Llego-Mi-Momento-Marcela-Resva.pdf";
 
+/** Decodifica base64 del endpoint (evita PDF corrupto si el proxy no maneja binario). */
+function base64ToPdfBytes(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const n = binary.length;
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
 export default function LibroGraciasPage() {
   const sessionId = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -30,11 +39,21 @@ export default function LibroGraciasPage() {
         setDownloadError(errJson?.message || `Error ${res.status} al descargar.`);
         return;
       }
-      if (!ct.includes("application/pdf")) {
+
+      let blob: Blob;
+      if (ct.includes("application/json")) {
+        const payload = (await res.json()) as { filename?: string; pdfBase64?: string; message?: string };
+        if (payload.message || !payload.pdfBase64) {
+          setDownloadError(payload.message || "Respuesta inválida del servidor.");
+          return;
+        }
+        blob = new Blob([base64ToPdfBytes(payload.pdfBase64)], { type: "application/pdf" });
+      } else if (ct.includes("application/pdf")) {
+        blob = await res.blob();
+      } else {
         setDownloadError("El servidor no devolvió un PDF. Revisa la consola del servidor o vuelve a intentar.");
         return;
       }
-      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
