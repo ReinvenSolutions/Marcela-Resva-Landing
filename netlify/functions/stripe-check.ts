@@ -5,6 +5,9 @@
  */
 import type { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
+import { loadRepoDotenvIfMissingStripe } from './load-repo-dotenv';
+
+loadRepoDotenvIfMissingStripe();
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',

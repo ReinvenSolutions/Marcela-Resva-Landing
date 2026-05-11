@@ -4,6 +4,9 @@ import { Resend } from 'resend';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { loadRepoDotenvIfMissingStripe } from './load-repo-dotenv';
+
+loadRepoDotenvIfMissingStripe();
 
 const CHECKOUT_METADATA_PRODUCT = 'ebook_llego_mi_momento';
 

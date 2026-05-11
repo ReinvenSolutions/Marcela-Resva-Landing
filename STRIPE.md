@@ -12,6 +12,7 @@ Guía completa para desarrollo local, diagnóstico, variables de entorno y despl
 | Crear sesión de pago | `netlify/functions/create-checkout-session.ts` | Crea una Checkout Session (modo `embedded`), precio fijo **8,44 USD** (`844` centavos). |
 | Webhook (post-pago) | `netlify/functions/stripe-webhook-libro.ts` | Verifica firma; en `checkout.session.completed` filtra por `metadata.product = ebook_llego_mi_momento`. |
 | Diagnóstico | `netlify/functions/stripe-check.ts` | GET `/.netlify/functions/stripe-check` — valida la clave sin cobrar nada. |
+| Carga de `.env` en local | `netlify/functions/load-repo-dotenv.ts` | Si falta `STRIPE_SECRET_KEY`, lee el `.env` de la raíz del repo (evita depender del symlink `client/.env`). |
 | Config de Vite | `vite.config.ts` | `envDir` = raíz del repo; expone `VITE_STRIPE_PUBLISHABLE_KEY` al bundle. |
 
 **Flujo:**
@@ -57,6 +58,14 @@ Guía completa para desarrollo local, diagnóstico, variables de entorno y despl
 - Visa éxito: `4242 4242 4242 4242`, cualquier fecha futura, cualquier CVC.
 - Ver todas: https://stripe.com/docs/testing#cards
 
+### Mensajes habituales en la consola del navegador
+
+| Mensaje | Qué significa |
+|---------|----------------|
+| *You may test your Stripe.js integration over HTTP…* con `pk_live` en `http://localhost` | Aviso esperado: en local no hay HTTPS. Para evitarlo usa claves **test** en desarrollo. |
+| *Content Security Policy… report-only* | Solo **informa**; no bloquea. Suele ser extensión del navegador o política corporativa. Si en algún entorno pasara a *enforce*, habría que permitir los orígenes que [documenta Stripe](https://docs.stripe.com/security/guide#content-security-policy) para `js.stripe.com` y APIs. |
+| `GET https://api.stripe.com/v1/elements/sessions … 400` | Suele ser **`pk_…` y `sk_…` de cuentas distintas** o test/live mezclados. Revisa Dashboard → API keys y las variables en Netlify / `.env`. La página `/libro` usa `fetchClientSecret` en el proveedor para alinear sesión e iframe. |
+
 ---
 
 ## Diagnóstico rápido (si algo no funciona)
@@ -99,17 +108,16 @@ Si **no aparece ese mensaje**, las funciones no están activas y obtendrás 404:
 ### 3. Verificar variables de entorno en local
 
 ```bash
-# Variables presentes en el .env
+# Variables presentes en el .env (en la raíz del repo, junto a package.json)
 grep -E '^(STRIPE_|VITE_STRIPE)' .env
 
-# Verificar que los dos symlinks existen
+# Enlace para que el plugin encuentre las funciones (sigue siendo necesario)
 ls -la client/netlify   # → ../netlify
-ls -la client/.env      # → ../.env
 ```
 
-Deberías ver las 3-4 variables con valores que empiecen por `pk_` o `sk_`, y ambos symlinks apuntando a los destinos correctos.
+Deberías ver las variables con valores que empiecen por `pk_` o `sk_`, y el enlace `client/netlify`.
 
-> **Error "Stripe no está configurado en el servidor"**: el symlink `client/.env` falta o está roto.
+> **Error "Stripe no está configurado en el servidor"**: no hay `STRIPE_SECRET_KEY` en el `.env` de la raíz, o la línea está mal escrita. Las funciones Stripe cargan ese archivo automáticamente si la variable no llegó por el plugin; no hace falta `client/.env`.
 > **Error "404 function not found"**: el symlink `client/netlify` falta o está roto.
 > **Error "Invalid API Key"**: la clave en `.env` está equivocada o fue revocada.
 
@@ -118,17 +126,17 @@ Deberías ver las 3-4 variables con valores que empiecen por `pk_` o `sk_`, y am
 ## Desarrollo local paso a paso
 
 ```bash
-# 1. Verificar (o crear) los dos symlinks necesarios
+# 1. Enlace para que @netlify/vite-plugin encuentre netlify/functions (necesario)
 ls -la client/netlify   # debe mostrar: client/netlify -> ../netlify
-ls -la client/.env      # debe mostrar: client/.env -> ../.env
 
-# Si no existen (en macOS/Linux):
-ln -s ../netlify client/netlify   # para que el plugin encuentre las funciones
-ln -s ../.env    client/.env      # para que las funciones lean las variables de entorno
+# Si no existe (macOS / Linux):
+ln -s ../netlify client/netlify
 
 # En Windows (PowerShell como admin):
 # New-Item -ItemType Junction -Path client\netlify -Target ..\netlify
-# New-Item -ItemType SymbolicLink -Path client\.env -Target ..\.env
+
+# Opcional: client/.env -> ../.env (ya no es obligatorio para Stripe; las funciones leen la raíz con dotenv)
+# ln -s ../.env client/.env
 
 # 2. Instalar dependencias (solo la primera vez)
 npm install
@@ -151,9 +159,9 @@ npm run dev
 # → Redirige a http://localhost:5176/libro/gracias
 ```
 
-> **¿Por qué dos symlinks?**
-> - `client/netlify → ../netlify`: el `@netlify/vite-plugin` busca las funciones relativo al `root` de Vite (`client/`).
-> - `client/.env → ../.env`: el plugin inyecta variables de entorno en las funciones leyendo `.env` relativo al `root` de Vite. Sin este symlink, `process.env.STRIPE_SECRET_KEY` es `undefined` dentro de la función y obtienes el error *"Stripe no está configurado en el servidor"*.
+> **¿Por qué `client/netlify`?** El `@netlify/vite-plugin` resuelve la carpeta de funciones relativa al `root` de Vite (`client/`). Sin ese enlace, las rutas `/.netlify/functions/*` devuelven 404 en local.
+>
+> Las funciones de Stripe llaman a `loadRepoDotenvIfMissingStripe()` al cargar el módulo: si `STRIPE_SECRET_KEY` no está definida, leen el `.env` de la raíz del repositorio (junto a `package.json`). Así funciona el checkout en local tras un `git clone` sin crear `client/.env`.
 
 
 
@@ -207,6 +215,7 @@ stripe listen --forward-to http://localhost:5176/.netlify/functions/stripe-webho
 | `netlify/functions/create-checkout-session.ts` | Creación de sesión de pago |
 | `netlify/functions/stripe-webhook-libro.ts` | Webhook post-pago |
 | `netlify/functions/stripe-check.ts` | Diagnóstico / health-check |
+| `netlify/functions/load-repo-dotenv.ts` | Carga del `.env` raíz en local si falta `STRIPE_SECRET_KEY` |
 | `vite.config.ts` | `envDir` y fallback `VITE_STRIPE_PUBLISHABLE_KEY` |
 | `client/netlify` | Enlace simbólico `→ ../netlify` para que el plugin encuentre las funciones |
 | `.env.example` | Plantilla de variables de entorno |

@@ -1,5 +1,8 @@
 import type { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
+import { loadRepoDotenvIfMissingStripe } from './load-repo-dotenv';
+
+loadRepoDotenvIfMissingStripe();
 
 /** USD 8.44 — mismo precio acordado para el ebook */
 const LIBRO_PRICE_USD_CENTS = 844;

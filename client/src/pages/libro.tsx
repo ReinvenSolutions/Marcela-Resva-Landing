@@ -50,6 +50,9 @@ async function readCheckoutJson(res: Response): Promise<{ data: { clientSecret?:
   }
 }
 
+/** Caché entre montajes (p. ej. React Strict Mode) para no crear dos sesiones ni mezclar `clientSecret` con otro iframe. */
+let libroEmbeddedClientSecretCache: string | null = null;
+
 function LibroCompraCta({
   className,
   children,
@@ -199,19 +202,28 @@ const audienceItems = [
 export default function LibroPage() {
   const { toast } = useToast();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  /** Monta el iframe de Stripe solo al llegar a #comprar o al pulsar «Comprar». */
+  const [embedCheckout, setEmbedCheckout] = useState(false);
+  const [checkoutBooting, setCheckoutBooting] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const checkoutFetchedRef = useRef(false);
 
   const stripePromise = useMemo(
     () => (publishableKey ? loadStripe(publishableKey) : null),
     [publishableKey],
   );
 
-  /** Llama a la función serverless y obtiene el clientSecret de Stripe. */
-  const fetchClientSecret = useCallback(async () => {
-    if (checkoutFetchedRef.current || stripeClientSecret) return;
+  useEffect(() => {
+    return () => {
+      libroEmbeddedClientSecretCache = null;
+    };
+  }, []);
+
+  /**
+   * Patrón recomendado por Stripe para Embedded Checkout: el propio iframe pide el `clientSecret`.
+   * Evita 400 en `elements/sessions` por desfase entre sesión creada y lo que consume Stripe.js (p. ej. Strict Mode).
+   */
+  const fetchEmbeddedClientSecret = useCallback(async (): Promise<string> => {
+    if (libroEmbeddedClientSecretCache) return libroEmbeddedClientSecretCache;
     if (!publishableKey) {
       toast({
         title: "Falta la clave pública de Stripe",
@@ -219,10 +231,9 @@ export default function LibroPage() {
           "En la raíz del repo, .env debe incluir VITE_STRIPE_PUBLISHABLE_KEY=pk_… (o STRIPE_PUBLISHABLE_KEY). Luego reinicia npm run dev. Ver STRIPE.md.",
         variant: "destructive",
       });
-      return;
+      throw new Error("Falta VITE_STRIPE_PUBLISHABLE_KEY");
     }
-    checkoutFetchedRef.current = true;
-    setCheckoutLoading(true);
+    setCheckoutBooting(true);
     try {
       const res = await fetch("/.netlify/functions/create-checkout-session", {
         method: "POST",
@@ -231,41 +242,41 @@ export default function LibroPage() {
       });
       const { data, bodyEmpty } = await readCheckoutJson(res);
       if (!res.ok) {
-        checkoutFetchedRef.current = false;
         const is404 = bodyEmpty && res.status === 404;
         const msg = is404
           ? "Función no encontrada (404). Asegúrate de usar 'npm run dev' y que el plugin @netlify/vite-plugin esté activo. Ver STRIPE.md."
           : data.message || "No se pudo iniciar el pago";
         const hint = data.hint;
         console.error("[Stripe Checkout] Error del servidor:", { status: res.status, msg, hint });
-        throw new Error(hint ? `${msg}\n\nSolución: ${hint}` : msg);
+        const err = new Error(hint ? `${msg}\n\nSolución: ${hint}` : msg);
+        toast({
+          title: "No pudimos preparar el checkout",
+          description: err.message,
+          variant: "destructive",
+        });
+        throw err;
       }
       if (!data.clientSecret) {
-        checkoutFetchedRef.current = false;
-        throw new Error("El servidor no devolvió la sesión de pago (clientSecret).");
+        const err = new Error("El servidor no devolvió la sesión de pago (clientSecret).");
+        toast({ title: "No pudimos preparar el checkout", description: err.message, variant: "destructive" });
+        throw err;
       }
-      setStripeClientSecret(data.clientSecret);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Intenta de nuevo en unos minutos";
-      toast({
-        title: "No pudimos preparar el checkout",
-        description: msg,
-        variant: "destructive",
-      });
+      libroEmbeddedClientSecretCache = data.clientSecret;
+      return libroEmbeddedClientSecretCache;
     } finally {
-      setCheckoutLoading(false);
+      setCheckoutBooting(false);
     }
-  }, [publishableKey, stripeClientSecret, toast]);
+  }, [publishableKey, toast]);
 
-  /** Botones "Comprar": desplazan hacia la sección y disparan la carga si aún no se hizo. */
+  /** Botones «Comprar»: llevan a #comprar y montan el checkout embebido. */
   const activateCheckout = useCallback(() => {
     if (externalLibroCheckoutUrl) {
       window.open(externalLibroCheckoutUrl, "_blank", "noopener,noreferrer");
       return;
     }
     document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    fetchClientSecret();
-  }, [fetchClientSecret]);
+    setEmbedCheckout(true);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -285,14 +296,14 @@ export default function LibroPage() {
       observerRef.current?.observe(el);
     });
 
-    // Auto-carga del checkout cuando la sección #comprar entra en el viewport
+    // Montar el checkout cuando la sección #comprar entra en el viewport
     const checkoutSection = document.getElementById("comprar");
     let checkoutVisibilityObserver: IntersectionObserver | null = null;
     if (checkoutSection && !externalLibroCheckoutUrl) {
       checkoutVisibilityObserver = new IntersectionObserver(
         (entries) => {
           if (entries[0].isIntersecting) {
-            fetchClientSecret();
+            setEmbedCheckout(true);
             checkoutVisibilityObserver?.disconnect();
           }
         },
@@ -306,7 +317,7 @@ export default function LibroPage() {
       observerRef.current?.disconnect();
       checkoutVisibilityObserver?.disconnect();
     };
-  }, [fetchClientSecret]);
+  }, []);
 
   return (
     <div
@@ -334,9 +345,9 @@ export default function LibroPage() {
           <LibroCompraCta
             className="font-sans hidden items-center rounded-full bg-[#2C242C] px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.15em] text-[#FBF9F6] shadow-[0_10px_30px_rgba(44,36,44,0.15)] transition-all duration-500 hover:-translate-y-1 hover:bg-[#502246] hover:shadow-[0_15px_40px_rgba(80,34,70,0.25)] enabled:cursor-pointer disabled:cursor-wait disabled:opacity-80 md:inline-flex"
             onActivate={activateCheckout}
-            disabled={checkoutLoading}
+            disabled={checkoutBooting}
           >
-            {checkoutLoading ? "Preparando…" : "Comprar Ebook"}
+            {checkoutBooting ? "Preparando…" : "Comprar Ebook"}
           </LibroCompraCta>
         </div>
       </header>
@@ -404,10 +415,10 @@ export default function LibroPage() {
                 <LibroCompraCta
                   className="group relative inline-flex items-center justify-center gap-4 overflow-hidden rounded-full bg-gradient-to-r from-[#D4AF37] to-[#B59119] px-10 py-5 font-sans text-[15px] font-semibold tracking-[0.15em] text-white uppercase transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(212,175,55,0.3)] enabled:cursor-pointer disabled:cursor-wait disabled:opacity-90"
                   onActivate={activateCheckout}
-                  disabled={checkoutLoading}
+                  disabled={checkoutBooting}
                 >
                   <span className="libro-shimmer-anim absolute inset-0 h-full w-full -translate-x-full skew-x-12 bg-white/20" />
-                  <span className="relative z-10">{checkoutLoading ? "Preparando…" : "Comprar Ahora"}</span>
+                  <span className="relative z-10">{checkoutBooting ? "Preparando…" : "Comprar Ahora"}</span>
                   <ArrowRight className="relative z-10 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1.5" />
                 </LibroCompraCta>
               </div>
@@ -642,11 +653,11 @@ export default function LibroPage() {
                     <LibroCompraCta
                       className="font-sans group relative inline-flex w-full items-center justify-center gap-4 overflow-hidden rounded-full bg-[#D4AF37] px-10 py-5 text-[16px] font-bold tracking-[0.15em] text-[#2C242C] uppercase shadow-[0_0_40px_rgba(212,175,55,0.4)] transition-all duration-500 hover:-translate-y-1 hover:bg-[#C5A028] hover:shadow-[0_0_60px_rgba(212,175,55,0.6)] enabled:cursor-pointer disabled:cursor-wait disabled:opacity-90 sm:w-auto"
                       onActivate={activateCheckout}
-                      disabled={checkoutLoading}
+                      disabled={checkoutBooting}
                     >
                       <span className="absolute h-0 w-0 rounded-full bg-white opacity-10 transition-all duration-500 ease-out group-hover:h-56 group-hover:w-56" />
                       <span className="relative z-10">
-                        {checkoutLoading ? "Preparando checkout…" : "✦ Quiero mi libro digital ✦"}
+                        {checkoutBooting ? "Preparando checkout…" : "✦ Quiero mi libro digital ✦"}
                       </span>
                     </LibroCompraCta>
                     <div className="mt-16 flex w-full flex-wrap items-center justify-center gap-6 border-t border-white/10 pt-10 text-sm font-medium text-[#E8D5D1] md:gap-12 lg:justify-start">
@@ -679,8 +690,11 @@ export default function LibroPage() {
                   <p className="font-sans mb-6 text-center text-xs font-bold tracking-[0.2em] text-[#D4AF37] uppercase lg:text-left">
                     Pago seguro con Stripe
                   </p>
-                  {stripeClientSecret && stripePromise ? (
-                    <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
+                  {embedCheckout && stripePromise ? (
+                    <EmbeddedCheckoutProvider
+                      stripe={stripePromise}
+                      options={{ fetchClientSecret: fetchEmbeddedClientSecret }}
+                    >
                       <div className="libro-embedded-checkout mx-auto max-w-xl overflow-hidden rounded-2xl border border-white/25 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.35)] lg:max-w-none">
                         <EmbeddedCheckout />
                       </div>
@@ -750,9 +764,9 @@ export default function LibroPage() {
         <LibroCompraCta
           className="font-sans flex w-full items-center justify-center rounded-full bg-gradient-to-r from-[#502246] to-[#3B1933] py-4 text-sm font-bold tracking-widest text-white uppercase shadow-xl shadow-[#502246]/20 enabled:cursor-pointer disabled:cursor-wait disabled:opacity-90"
           onActivate={activateCheckout}
-          disabled={checkoutLoading}
+          disabled={checkoutBooting}
         >
-          {checkoutLoading ? "Preparando…" : "Comprar Ebook"}
+          {checkoutBooting ? "Preparando…" : "Comprar Ebook"}
         </LibroCompraCta>
       </div>
     </div>
