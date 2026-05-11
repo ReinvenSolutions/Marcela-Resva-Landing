@@ -154,6 +154,9 @@ const libroStyles = `
   .libro-page .group:hover .libro-shimmer-anim {
     animation: libro-shimmer 1.5s infinite;
   }
+  .libro-page .libro-shimmer-anim {
+    pointer-events: none;
+  }
   .libro-page .libro-embedded-checkout {
     min-height: 420px;
   }
@@ -268,14 +271,21 @@ export default function LibroPage() {
     }
   }, [publishableKey, toast]);
 
-  /** Botones «Comprar»: llevan a #comprar y montan el checkout embebido. */
+  /** Botones «Comprar»: montan el checkout y llevan al ancla del formulario (compensa header fijo). */
   const activateCheckout = useCallback(() => {
     if (externalLibroCheckoutUrl) {
       window.open(externalLibroCheckoutUrl, "_blank", "noopener,noreferrer");
       return;
     }
-    document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" });
     setEmbedCheckout(true);
+    requestAnimationFrame(() => {
+      const anchor = document.getElementById("checkout-libro");
+      if (anchor) {
+        anchor.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -411,7 +421,7 @@ export default function LibroPage() {
                 </p>
               </div>
 
-              <div className="animate-on-scroll delay-400">
+              <div className="relative z-30">
                 <LibroCompraCta
                   className="group relative inline-flex items-center justify-center gap-4 overflow-hidden rounded-full bg-gradient-to-r from-[#D4AF37] to-[#B59119] px-10 py-5 font-sans text-[15px] font-semibold tracking-[0.15em] text-white uppercase transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(212,175,55,0.3)] enabled:cursor-pointer disabled:cursor-wait disabled:opacity-90"
                   onActivate={activateCheckout}
@@ -612,7 +622,7 @@ export default function LibroPage() {
         </section>
 
         <section id="comprar" className="relative py-32">
-          <div className="animate-on-scroll relative z-10 mx-auto max-w-6xl px-6">
+          <div className="relative z-10 mx-auto max-w-6xl px-6">
             <div className="group relative overflow-hidden rounded-[3rem] shadow-[0_30px_60px_rgba(0,0,0,0.15)]">
               <div className="absolute inset-0 bg-gradient-to-br from-[#2C242C] via-[#3B1933] to-[#502246]" />
               <div
@@ -655,7 +665,7 @@ export default function LibroPage() {
                       onActivate={activateCheckout}
                       disabled={checkoutBooting}
                     >
-                      <span className="absolute h-0 w-0 rounded-full bg-white opacity-10 transition-all duration-500 ease-out group-hover:h-56 group-hover:w-56" />
+                      <span className="pointer-events-none absolute h-0 w-0 rounded-full bg-white opacity-10 transition-all duration-500 ease-out group-hover:h-56 group-hover:w-56" />
                       <span className="relative z-10">
                         {checkoutBooting ? "Preparando checkout…" : "✦ Quiero mi libro digital ✦"}
                       </span>
@@ -687,6 +697,7 @@ export default function LibroPage() {
                 </div>
 
                 <div className="relative z-10 border-t border-white/10 pt-10">
+                  <div id="checkout-libro" className="scroll-mt-28 md:scroll-mt-32" aria-hidden />
                   <p className="font-sans mb-6 text-center text-xs font-bold tracking-[0.2em] text-[#D4AF37] uppercase lg:text-left">
                     Pago seguro con Stripe
                   </p>

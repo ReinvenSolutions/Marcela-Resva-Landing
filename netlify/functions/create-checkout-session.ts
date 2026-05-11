@@ -4,6 +4,16 @@ import { loadRepoDotenvIfMissingStripe } from './load-repo-dotenv';
 
 loadRepoDotenvIfMissingStripe();
 
+/** Evita fallos si en Netlify la variable tiene espacios o comillas al pegar. */
+function normalizeStripeSecret(raw: string | undefined): string {
+  if (!raw) return '';
+  let s = raw.trim();
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
+
 /** USD 8.44 — mismo precio acordado para el ebook */
 const LIBRO_PRICE_USD_CENTS = 844;
 const CHECKOUT_METADATA_PRODUCT = 'ebook_llego_mi_momento';
@@ -40,7 +50,8 @@ function stripeErrorMessage(err: unknown): { message: string; hint?: string } {
   if (err instanceof Stripe.errors.StripeAuthenticationError) {
     return {
       message: 'La clave secreta de Stripe es inválida o fue revocada.',
-      hint: 'Ve a Stripe Dashboard → Developers → API Keys y regenera la clave. Luego actualiza STRIPE_SECRET_KEY en tu .env (local) y en Netlify → Site settings → Environment variables (producción).',
+      hint:
+        'En Netlify: Site settings → Environment variables → STRIPE_SECRET_KEY (valor sin comillas, una sola línea, clave secreta estándar sk_live_… de Stripe Dashboard → Developers → API keys → Reveal). Guarda y vuelve a desplegar el sitio.',
     };
   }
   if (err instanceof Stripe.errors.StripeInvalidRequestError) {
@@ -64,7 +75,7 @@ export const handler: Handler = async (event) => {
     return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ message: 'Method Not Allowed' }) };
   }
 
-  const secret = process.env.STRIPE_SECRET_KEY;
+  const secret = normalizeStripeSecret(process.env.STRIPE_SECRET_KEY);
   if (!secret) {
     console.error('create-checkout-session: falta STRIPE_SECRET_KEY en las variables de entorno');
     return {
