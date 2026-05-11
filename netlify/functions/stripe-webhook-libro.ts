@@ -2,6 +2,7 @@ import type { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
 import { readFileSync } from 'fs';
+import { existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { loadRepoDotenvIfMissingStripe } from './load-repo-dotenv';
@@ -9,9 +10,20 @@ import { loadRepoDotenvIfMissingStripe } from './load-repo-dotenv';
 loadRepoDotenvIfMissingStripe();
 
 const CHECKOUT_METADATA_PRODUCT = 'ebook_llego_mi_momento';
+/** Debe coincidir con `LIBRO_PRICE_USD_CENTS` en create-checkout-session.ts */
+const LIBRO_PRICE_USD_CENTS = 844;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+function normalizeStripeSecret(raw: string | undefined): string {
+  if (!raw) return '';
+  let s = raw.trim();
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
 
 function buildEmailHtml(nombre: string): string {
   return `<!DOCTYPE html>
@@ -143,16 +155,29 @@ Marcela Resva
 Shifting Souls 🤍`;
 }
 
+function loadPdfBuffer(): Buffer {
+  const name = 'LLEGO_MI_MOMENTO_DIGITAL.pdf';
+  const candidates = [
+    join(__dirname, 'assets', name),
+    join(process.cwd(), 'netlify/functions/assets', name),
+    join(process.cwd(), 'functions/assets', name),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      return readFileSync(p);
+    }
+  }
+  throw new Error(`PDF no encontrado en el bundle (probado: ${candidates.join(', ')})`);
+}
+
 async function sendBookEmail(email: string, nombre: string): Promise<void> {
-  const resendKey = process.env.RESEND_API_KEY;
+  const resendKey = process.env.RESEND_API_KEY?.trim();
   if (!resendKey) {
     throw new Error('Falta RESEND_API_KEY en las variables de entorno');
   }
 
   const resend = new Resend(resendKey);
-
-  const pdfPath = join(__dirname, 'assets', 'LLEGO_MI_MOMENTO_DIGITAL.pdf');
-  const pdfBuffer = readFileSync(pdfPath);
+  const pdfBuffer = loadPdfBuffer();
 
   const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'Marcela Resva <hola@marcelaresva.com>',
@@ -173,13 +198,99 @@ async function sendBookEmail(email: string, nombre: string): Promise<void> {
   }
 }
 
+function isLibroEbookPurchase(session: Stripe.Checkout.Session): boolean {
+  if (session.metadata?.product === CHECKOUT_METADATA_PRODUCT) return true;
+  if (
+    session.mode === 'payment' &&
+    session.currency === 'usd' &&
+    session.amount_total === LIBRO_PRICE_USD_CENTS
+  ) {
+    console.warn('stripe-webhook-libro: metadata ausente o distinta; reconocido por importe USD 8,44', {
+      sessionId: session.id,
+      metadata: session.metadata,
+    });
+    return true;
+  }
+  return false;
+}
+
+function resolveBuyerEmail(session: Stripe.Checkout.Session): string | undefined {
+  const d = session.customer_details?.email?.trim();
+  if (d) return d;
+  const ce = session.customer_email?.trim();
+  if (ce) return ce;
+  const cust = session.customer;
+  if (cust && typeof cust === 'object' && !('deleted' in cust)) {
+    const em = (cust as Stripe.Customer).email?.trim();
+    if (em) return em;
+  }
+  return undefined;
+}
+
+function sessionIsPaid(session: Stripe.Checkout.Session): boolean {
+  return session.payment_status === 'paid' || session.payment_status === 'no_payment_required';
+}
+
+/**
+ * Envía el PDF si la sesión es del ebook, está cobrada y hay email.
+ * Pagos asíncronos: la primera vez puede llegar `unpaid`; entonces esperamos `checkout.session.async_payment_succeeded`.
+ */
+async function tryFulfillLibroPurchase(stripe: Stripe, sessionFromEvent: Stripe.Checkout.Session): Promise<void> {
+  let session = sessionFromEvent;
+  try {
+    session = await stripe.checkout.sessions.retrieve(sessionFromEvent.id, {
+      expand: ['customer'],
+    });
+  } catch (e) {
+    console.warn('stripe-webhook-libro: retrieve falló; se usa el objeto del evento', e);
+  }
+
+  if (!isLibroEbookPurchase(session)) {
+    console.log('stripe-webhook-libro: sesión ignorada (no es ebook libro)', session.id, session.metadata);
+    return;
+  }
+
+  const email = resolveBuyerEmail(session);
+  const nombre =
+    session.customer_details?.name?.trim() ||
+    (typeof session.customer === 'object' && session.customer && 'name' in session.customer
+      ? (session.customer as Stripe.Customer).name?.trim()
+      : undefined) ||
+    'querida alma';
+
+  console.log('stripe-webhook-libro: ebook detectado', {
+    sessionId: session.id,
+    email: email || '(sin email)',
+    nombre,
+    payment_status: session.payment_status,
+    amountTotal: session.amount_total,
+    metadata: session.metadata,
+  });
+
+  if (!sessionIsPaid(session)) {
+    console.log(
+      'stripe-webhook-libro: aún sin cobro en esta notificación — si es pago diferido, llegará otro evento',
+      session.payment_status,
+    );
+    return;
+  }
+
+  if (!email) {
+    console.error('stripe-webhook-libro: cobro registrado pero Stripe no devolvió email del comprador', session.id);
+    throw new Error('Sesión de checkout sin email del comprador');
+  }
+
+  await sendBookEmail(email, nombre);
+  console.log(`stripe-webhook-libro: libro enviado a ${email} (${nombre})`);
+}
+
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  const secret = process.env.STRIPE_SECRET_KEY;
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = normalizeStripeSecret(process.env.STRIPE_SECRET_KEY);
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
   if (!secret) {
     console.error('stripe-webhook-libro: falta STRIPE_SECRET_KEY');
@@ -205,38 +316,19 @@ export const handler: Handler = async (event) => {
     return { statusCode: 400, body: 'Invalid signature' };
   }
 
-  if (stripeEvent.type === 'checkout.session.completed') {
+  const libroCheckoutEvents = ['checkout.session.completed', 'checkout.session.async_payment_succeeded'] as const;
+
+  if ((libroCheckoutEvents as readonly string[]).includes(stripeEvent.type)) {
     const session = stripeEvent.data.object as Stripe.Checkout.Session;
-
-    if (session.metadata?.product !== CHECKOUT_METADATA_PRODUCT) {
-      console.log('stripe-webhook-libro: sesión ignorada (producto distinto)', session.id);
-    } else {
-      const email = session.customer_details?.email || session.customer_email || undefined;
-      const nombre = session.customer_details?.name || 'querida alma';
-      const paid = session.payment_status === 'paid';
-
-      console.log('stripe-webhook-libro: compra ebook', {
-        sessionId: session.id,
-        email: email || '(sin email)',
-        nombre,
-        paid,
-        amountTotal: session.amount_total,
-      });
-
-      if (paid && email) {
-        try {
-          await sendBookEmail(email, nombre);
-          console.log(`stripe-webhook-libro: libro enviado a ${email} (${nombre})`);
-        } catch (err) {
-          console.error('stripe-webhook-libro: error enviando libro', err);
-          // Devolvemos 200 de todas formas para que Stripe no reintente el webhook.
-          // El error queda en los logs de Netlify para revisión manual.
-        }
-      } else if (!email) {
-        console.warn('stripe-webhook-libro: pago completado pero sin email — no se pudo enviar el libro');
-      } else if (!paid) {
-        console.warn('stripe-webhook-libro: sesión completada pero payment_status no es "paid"', session.payment_status);
-      }
+    try {
+      await tryFulfillLibroPurchase(stripe, session);
+    } catch (err) {
+      console.error('stripe-webhook-libro: fallo al enviar el libro (Stripe reintentará si respondemos 500)', err);
+      return {
+        statusCode: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ received: false, error: err instanceof Error ? err.message : 'unknown' }),
+      };
     }
   }
 
