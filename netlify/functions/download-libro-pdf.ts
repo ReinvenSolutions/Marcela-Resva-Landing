@@ -1,18 +1,13 @@
 import type { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
-import { readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { loadRepoDotenvIfMissingStripe } from './load-repo-dotenv';
+import { loadLibroPdfBuffer } from './resolve-libro-pdf';
 
 loadRepoDotenvIfMissingStripe();
 
 /** Igual que en create-checkout-session.ts y stripe-webhook-libro.ts */
 const CHECKOUT_METADATA_PRODUCT = 'ebook_llego_mi_momento';
 const LIBRO_PRICE_USD_CENTS = 844;
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 function normalizeStripeSecret(raw: string | undefined): string {
   if (!raw) return '';
@@ -21,21 +16,6 @@ function normalizeStripeSecret(raw: string | undefined): string {
     s = s.slice(1, -1).trim();
   }
   return s;
-}
-
-function loadPdfBuffer(): Buffer {
-  const name = 'LLEGO_MI_MOMENTO_DIGITAL.pdf';
-  const candidates = [
-    join(__dirname, 'assets', name),
-    join(process.cwd(), 'netlify/functions/assets', name),
-    join(process.cwd(), 'functions/assets', name),
-  ];
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      return readFileSync(p);
-    }
-  }
-  throw new Error(`PDF no encontrado (probado: ${candidates.join(', ')})`);
 }
 
 function isLibroEbookPurchase(session: Stripe.Checkout.Session): boolean {
@@ -124,7 +104,7 @@ export const handler: Handler = async (event) => {
 
   let pdf: Buffer;
   try {
-    pdf = loadPdfBuffer();
+    pdf = loadLibroPdfBuffer();
   } catch (e) {
     console.error('download-libro-pdf: leer PDF', e);
     return {

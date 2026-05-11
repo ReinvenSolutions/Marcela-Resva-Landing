@@ -1,20 +1,14 @@
 import type { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
-import { readFileSync } from 'fs';
-import { existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { loadRepoDotenvIfMissingStripe } from './load-repo-dotenv';
+import { loadLibroPdfBuffer } from './resolve-libro-pdf';
 
 loadRepoDotenvIfMissingStripe();
 
 const CHECKOUT_METADATA_PRODUCT = 'ebook_llego_mi_momento';
 /** Debe coincidir con `LIBRO_PRICE_USD_CENTS` en create-checkout-session.ts */
 const LIBRO_PRICE_USD_CENTS = 844;
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 function normalizeStripeSecret(raw: string | undefined): string {
   if (!raw) return '';
@@ -155,21 +149,6 @@ Marcela Resva
 Shifting Souls 🤍`;
 }
 
-function loadPdfBuffer(): Buffer {
-  const name = 'LLEGO_MI_MOMENTO_DIGITAL.pdf';
-  const candidates = [
-    join(__dirname, 'assets', name),
-    join(process.cwd(), 'netlify/functions/assets', name),
-    join(process.cwd(), 'functions/assets', name),
-  ];
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      return readFileSync(p);
-    }
-  }
-  throw new Error(`PDF no encontrado en el bundle (probado: ${candidates.join(', ')})`);
-}
-
 async function sendBookEmail(email: string, nombre: string): Promise<void> {
   const resendKey = process.env.RESEND_API_KEY?.trim();
   if (!resendKey) {
@@ -177,7 +156,7 @@ async function sendBookEmail(email: string, nombre: string): Promise<void> {
   }
 
   const resend = new Resend(resendKey);
-  const pdfBuffer = loadPdfBuffer();
+  const pdfBuffer = loadLibroPdfBuffer();
 
   const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'Marcela Resva <hola@marcelaresva.com>',

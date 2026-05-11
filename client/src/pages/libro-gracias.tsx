@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Mail, Sparkles, Heart, Download } from "lucide-react";
+
+const PDF_FILENAME = "Llego-Mi-Momento-Marcela-Resva.pdf";
 
 export default function LibroGraciasPage() {
   const sessionId = useMemo(() => {
@@ -12,6 +14,42 @@ export default function LibroGraciasPage() {
     sessionId && sessionId.startsWith("cs_")
       ? `/.netlify/functions/download-libro-pdf?session_id=${encodeURIComponent(sessionId)}`
       : null;
+
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!downloadHref) return;
+    setDownloadError(null);
+    setDownloading(true);
+    try {
+      const res = await fetch(downloadHref, { method: "GET", credentials: "same-origin" });
+      const ct = res.headers.get("content-type") || "";
+      if (!res.ok) {
+        const errJson = (await res.json().catch(() => null)) as { message?: string } | null;
+        setDownloadError(errJson?.message || `Error ${res.status} al descargar.`);
+        return;
+      }
+      if (!ct.includes("application/pdf")) {
+        setDownloadError("El servidor no devolvió un PDF. Revisa la consola del servidor o vuelve a intentar.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = PDF_FILENAME;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setDownloadError("No se pudo completar la descarga. Comprueba tu conexión e inténtalo de nuevo.");
+    } finally {
+      setDownloading(false);
+    }
+  }, [downloadHref]);
 
   return (
     <div className="min-h-screen bg-[#FBF9F6] text-[#2C242C] selection:bg-[#D4AF37]/30 selection:text-[#502246]">
@@ -77,14 +115,20 @@ export default function LibroGraciasPage() {
             <p className="font-sans mb-5 text-[15px] leading-relaxed text-[#6A5D6A]">
               Mientras llega el correo, puedes guardar el libro en tu dispositivo con el mismo archivo que recibirás por email.
             </p>
-            <a
-              href={downloadHref}
-              className="font-sans inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#502246] px-6 py-3.5 text-sm font-semibold tracking-wide text-[#FBF9F6] shadow-md transition hover:bg-[#7B3B6B] sm:w-auto"
-              download
+            {downloadError ? (
+              <p className="font-sans mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+                {downloadError}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={downloading}
+              className="font-sans inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#502246] px-6 py-3.5 text-sm font-semibold tracking-wide text-[#FBF9F6] shadow-md transition hover:bg-[#7B3B6B] disabled:cursor-wait disabled:opacity-80 sm:w-auto"
             >
               <Download className="h-4 w-4" aria-hidden />
-              Descargar PDF
-            </a>
+              {downloading ? "Descargando…" : "Descargar PDF"}
+            </button>
           </div>
         ) : null}
 
