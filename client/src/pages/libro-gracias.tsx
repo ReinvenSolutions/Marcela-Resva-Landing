@@ -1,7 +1,18 @@
+import { useMemo } from "react";
 import { Link } from "wouter";
-import { Mail, Sparkles, Heart } from "lucide-react";
+import { Mail, Sparkles, Heart, Download } from "lucide-react";
 
 export default function LibroGraciasPage() {
+  const sessionId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("session_id");
+  }, []);
+
+  const downloadHref =
+    sessionId && sessionId.startsWith("cs_")
+      ? `/.netlify/functions/download-libro-pdf?session_id=${encodeURIComponent(sessionId)}`
+      : null;
+
   return (
     <div className="min-h-screen bg-[#FBF9F6] text-[#2C242C] selection:bg-[#D4AF37]/30 selection:text-[#502246]">
       <div className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6 py-16 text-center">
@@ -51,6 +62,31 @@ export default function LibroGraciasPage() {
             ¿No lo ves? Revisa la carpeta de spam o promociones. 📩
           </p>
         </div>
+
+        {/* Descarga inmediata (solo tras checkout con session_id en la URL) */}
+        {downloadHref ? (
+          <div className="mb-10 rounded-2xl border border-[#502246]/15 bg-gradient-to-br from-[#FDFBF7] to-[#F5EFF5] px-8 py-7 text-left shadow-sm">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#D4AF37]/15">
+                <Download className="h-5 w-5 text-[#502246]" aria-hidden />
+              </div>
+              <p className="font-sans text-sm font-semibold text-[#2C242C] leading-tight">
+                Descarga tu PDF ahora
+              </p>
+            </div>
+            <p className="font-sans mb-5 text-[15px] leading-relaxed text-[#6A5D6A]">
+              Mientras llega el correo, puedes guardar el libro en tu dispositivo con el mismo archivo que recibirás por email.
+            </p>
+            <a
+              href={downloadHref}
+              className="font-sans inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#502246] px-6 py-3.5 text-sm font-semibold tracking-wide text-[#FBF9F6] shadow-md transition hover:bg-[#7B3B6B] sm:w-auto"
+              download
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              Descargar PDF
+            </a>
+          </div>
+        ) : null}
 
         {/* Sugerencias */}
         <div className="mb-10 space-y-3 text-left">
