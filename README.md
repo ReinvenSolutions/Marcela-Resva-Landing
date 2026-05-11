@@ -10,6 +10,7 @@ Landing page para Marcela Resva - Shifting Souls Community.
 - **Formularios:** React Hook Form + Zod
 - **Funciones Serverless:** Netlify Functions
 - **Newsletter:** MailerLite API
+- **Pagos (ebook):** Stripe (Embedded Checkout) — ver **[STRIPE.md](./STRIPE.md)**
 
 ## 📋 Requisitos Previos
 

@@ -97,9 +97,9 @@ export default function Landing() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <img 
-                src={marcelaLogo} 
-                alt="Marcela ResVa Logo" 
+              <img
+                src={marcelaLogo}
+                alt="Marcela ResVa Logo"
                 className="h-10 w-auto"
               />
             </div>

@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
+import { useToast } from "@/hooks/use-toast";
 import {
   ArrowRight,
   Baby,
@@ -17,18 +20,60 @@ import {
   Sprout,
   Star,
 } from "lucide-react";
-import marcelaPhoto from "@/assets/22_1752622341890.jpg";
+import marcelaPhoto from "@/assets/libro-marcela-autora.png";
 import libroPortadaAsset from "@/assets/libro-llego-mi-momento-portada.png";
 import libroEbookTabletAsset from "@/assets/libro-llego-mi-momento-ebook-tablet.png";
+import shiftingSoulsLogo from "@assets/IMG_0195-e1752623802409_1752623855399.webp";
 
 /** Override opcional (CDN). Si no hay env, se usa la portada del repo. */
 const libroPortadaSrc =
   (import.meta.env.VITE_LIBRO_PORTADA_URL as string | undefined)?.trim() ||
   libroPortadaAsset;
 
-const LIBRO_COMPRA_HREF =
-  import.meta.env.VITE_LIBRO_CHECKOUT_URL ||
-  "mailto:info@marcelaresva.com?subject=Quiero%20el%20ebook%20Lleg%C3%B3%20mi%20momento";
+const LIBRO_SOPORTE_HREF =
+  "mailto:info@marcelaresva.com?subject=Consulta%20sobre%20el%20ebook%20Lleg%C3%B3%20mi%20momento";
+
+/** Si está definida, los CTAs de compra enlazan aquí en lugar de Stripe. */
+const externalLibroCheckoutUrl = (import.meta.env.VITE_LIBRO_CHECKOUT_URL as string | undefined)?.trim();
+
+const publishableKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined)?.trim();
+
+async function readCheckoutJson(res: Response): Promise<{ data: { clientSecret?: string; url?: string; message?: string; hint?: string }; bodyEmpty: boolean }> {
+  const text = await res.text();
+  if (!text.trim()) {
+    return { data: {}, bodyEmpty: true };
+  }
+  try {
+    return { data: JSON.parse(text) as { clientSecret?: string; url?: string; message?: string; hint?: string }, bodyEmpty: false };
+  } catch {
+    return { data: { message: "La respuesta del servidor no es JSON válido" }, bodyEmpty: false };
+  }
+}
+
+function LibroCompraCta({
+  className,
+  children,
+  onActivate,
+  disabled,
+}: {
+  className?: string;
+  children: ReactNode;
+  onActivate: () => void;
+  disabled?: boolean;
+}) {
+  if (externalLibroCheckoutUrl) {
+    return (
+      <a href={externalLibroCheckoutUrl} target="_blank" rel="noopener noreferrer" className={className}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <button type="button" disabled={disabled} onClick={onActivate} className={className}>
+      {children}
+    </button>
+  );
+}
 
 const libroStyles = `
   .libro-page .font-serif { font-family: 'Cormorant Garamond', serif; }
@@ -106,6 +151,9 @@ const libroStyles = `
   .libro-page .group:hover .libro-shimmer-anim {
     animation: libro-shimmer 1.5s infinite;
   }
+  .libro-page .libro-embedded-checkout {
+    min-height: 420px;
+  }
 `;
 
 const chapters = [
@@ -149,13 +197,81 @@ const audienceItems = [
 ] as const;
 
 export default function LibroPage() {
+  const { toast } = useToast();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const checkoutFetchedRef = useRef(false);
+
+  const stripePromise = useMemo(
+    () => (publishableKey ? loadStripe(publishableKey) : null),
+    [publishableKey],
+  );
+
+  /** Llama a la función serverless y obtiene el clientSecret de Stripe. */
+  const fetchClientSecret = useCallback(async () => {
+    if (checkoutFetchedRef.current || stripeClientSecret) return;
+    if (!publishableKey) {
+      toast({
+        title: "Falta la clave pública de Stripe",
+        description:
+          "En la raíz del repo, .env debe incluir VITE_STRIPE_PUBLISHABLE_KEY=pk_… (o STRIPE_PUBLISHABLE_KEY). Luego reinicia npm run dev. Ver STRIPE.md.",
+        variant: "destructive",
+      });
+      return;
+    }
+    checkoutFetchedRef.current = true;
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/.netlify/functions/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ origin: window.location.origin, mode: "embedded" }),
+      });
+      const { data, bodyEmpty } = await readCheckoutJson(res);
+      if (!res.ok) {
+        checkoutFetchedRef.current = false;
+        const is404 = bodyEmpty && res.status === 404;
+        const msg = is404
+          ? "Función no encontrada (404). Asegúrate de usar 'npm run dev' y que el plugin @netlify/vite-plugin esté activo. Ver STRIPE.md."
+          : data.message || "No se pudo iniciar el pago";
+        const hint = data.hint;
+        console.error("[Stripe Checkout] Error del servidor:", { status: res.status, msg, hint });
+        throw new Error(hint ? `${msg}\n\nSolución: ${hint}` : msg);
+      }
+      if (!data.clientSecret) {
+        checkoutFetchedRef.current = false;
+        throw new Error("El servidor no devolvió la sesión de pago (clientSecret).");
+      }
+      setStripeClientSecret(data.clientSecret);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Intenta de nuevo en unos minutos";
+      toast({
+        title: "No pudimos preparar el checkout",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }, [publishableKey, stripeClientSecret, toast]);
+
+  /** Botones "Comprar": desplazan hacia la sección y disparan la carga si aún no se hizo. */
+  const activateCheckout = useCallback(() => {
+    if (externalLibroCheckoutUrl) {
+      window.open(externalLibroCheckoutUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    fetchClientSecret();
+  }, [fetchClientSecret]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll, { passive: true });
 
+    // Observer para animaciones de entrada (animate-on-scroll)
     observerRef.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -169,11 +285,28 @@ export default function LibroPage() {
       observerRef.current?.observe(el);
     });
 
+    // Auto-carga del checkout cuando la sección #comprar entra en el viewport
+    const checkoutSection = document.getElementById("comprar");
+    let checkoutVisibilityObserver: IntersectionObserver | null = null;
+    if (checkoutSection && !externalLibroCheckoutUrl) {
+      checkoutVisibilityObserver = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            fetchClientSecret();
+            checkoutVisibilityObserver?.disconnect();
+          }
+        },
+        { threshold: 0.1 },
+      );
+      checkoutVisibilityObserver.observe(checkoutSection);
+    }
+
     return () => {
       window.removeEventListener("scroll", handleScroll);
       observerRef.current?.disconnect();
+      checkoutVisibilityObserver?.disconnect();
     };
-  }, []);
+  }, [fetchClientSecret]);
 
   return (
     <div
@@ -190,18 +323,21 @@ export default function LibroPage() {
         }`}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 lg:px-12">
-          <div className="font-serif flex items-center gap-2 text-2xl font-semibold tracking-wider text-[#502246] md:text-3xl">
-            <Sparkles className="h-5 w-5 text-[#D4AF37]" />
+          <div className="font-serif flex items-center gap-3 text-2xl font-semibold tracking-wider text-[#502246] md:text-3xl">
+            <img
+              src={shiftingSoulsLogo}
+              alt="Shifting Souls"
+              className="h-11 w-11 shrink-0 rounded-full object-cover ring-1 ring-[#502246]/15 md:h-12 md:w-12"
+            />
             Shifting Souls
           </div>
-          <a
-            href={LIBRO_COMPRA_HREF}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-sans hidden items-center rounded-full bg-[#2C242C] px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.15em] text-[#FBF9F6] shadow-[0_10px_30px_rgba(44,36,44,0.15)] transition-all duration-500 hover:-translate-y-1 hover:bg-[#502246] hover:shadow-[0_15px_40px_rgba(80,34,70,0.25)] md:inline-flex"
+          <LibroCompraCta
+            className="font-sans hidden items-center rounded-full bg-[#2C242C] px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.15em] text-[#FBF9F6] shadow-[0_10px_30px_rgba(44,36,44,0.15)] transition-all duration-500 hover:-translate-y-1 hover:bg-[#502246] hover:shadow-[0_15px_40px_rgba(80,34,70,0.25)] enabled:cursor-pointer disabled:cursor-wait disabled:opacity-80 md:inline-flex"
+            onActivate={activateCheckout}
+            disabled={checkoutLoading}
           >
-            Comprar Ebook
-          </a>
+            {checkoutLoading ? "Preparando…" : "Comprar Ebook"}
+          </LibroCompraCta>
         </div>
       </header>
 
@@ -226,7 +362,7 @@ export default function LibroPage() {
                   <span className="relative inline-flex h-3 w-3 rounded-full bg-[#D4AF37]" />
                 </span>
                 <span className="text-xs font-bold tracking-[0.2em] text-[#502246] uppercase">
-                  Nuevo Ebook Espiritual
+                  El viaje sagrado de quien elige renacer
                 </span>
               </div>
 
@@ -251,8 +387,8 @@ export default function LibroPage() {
                 </span>
               </h1>
 
-              <h2 className="animate-on-scroll delay-200 font-serif mb-10 text-3xl font-medium text-[#7A6B7A] italic md:text-4xl">
-                He decidido reencarnar
+              <h2 className="animate-on-scroll delay-200 font-serif mb-10 text-3xl font-medium italic md:text-4xl">
+                <span className="gradient-text">He decidido reencarnar</span>
               </h2>
 
               <div className="animate-on-scroll delay-300 relative pl-6 before:absolute before:top-0 before:left-0 before:h-full before:w-[2px] before:bg-gradient-to-b before:from-[#D4AF37] before:to-transparent lg:before:-left-8 lg:pl-0">
@@ -265,16 +401,15 @@ export default function LibroPage() {
               </div>
 
               <div className="animate-on-scroll delay-400">
-                <a
-                  href={LIBRO_COMPRA_HREF}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative inline-flex items-center justify-center gap-4 overflow-hidden rounded-full bg-gradient-to-r from-[#D4AF37] to-[#B59119] px-10 py-5 font-sans text-[15px] font-semibold tracking-[0.15em] text-white uppercase transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(212,175,55,0.3)]"
+                <LibroCompraCta
+                  className="group relative inline-flex items-center justify-center gap-4 overflow-hidden rounded-full bg-gradient-to-r from-[#D4AF37] to-[#B59119] px-10 py-5 font-sans text-[15px] font-semibold tracking-[0.15em] text-white uppercase transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(212,175,55,0.3)] enabled:cursor-pointer disabled:cursor-wait disabled:opacity-90"
+                  onActivate={activateCheckout}
+                  disabled={checkoutLoading}
                 >
                   <span className="libro-shimmer-anim absolute inset-0 h-full w-full -translate-x-full skew-x-12 bg-white/20" />
-                  <span className="relative z-10">Comprar Ahora</span>
+                  <span className="relative z-10">{checkoutLoading ? "Preparando…" : "Comprar Ahora"}</span>
                   <ArrowRight className="relative z-10 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1.5" />
-                </a>
+                </LibroCompraCta>
               </div>
             </div>
 
@@ -286,6 +421,10 @@ export default function LibroPage() {
               <div className="animate-on-scroll delay-300 relative w-[280px] md:w-[380px] lg:w-[380px]">
                 <div className="book-levitate group relative">
                   <div className="absolute -bottom-16 left-1/2 h-8 w-3/4 -translate-x-1/2 rounded-full bg-black/10 blur-xl transition-all duration-500" />
+                  <div
+                    className="absolute inset-0 z-[5] translate-x-4 -translate-y-4 rounded-[4px_16px_16px_4px] border border-[#D4AF37]/40 transition-transform duration-700 group-hover:translate-x-6 group-hover:-translate-y-6"
+                    aria-hidden
+                  />
                   <div className="relative z-10 overflow-hidden rounded-[4px_16px_16px_4px] border-l-[12px] border-[#3B1933] shadow-[-15px_15px_40px_rgba(0,0,0,0.15)] transition-transform duration-700 ease-out after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-r after:from-white/20 after:to-transparent group-hover:shadow-[-20px_20px_50px_rgba(80,34,70,0.25)]">
                     <img
                       src={libroPortadaSrc}
@@ -475,61 +614,88 @@ export default function LibroPage() {
               <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-[#D4AF37]/20 blur-[80px] transition-transform duration-[10s] group-hover:scale-150" />
               <div className="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-white/10 blur-[80px] transition-transform duration-[10s] group-hover:scale-150" />
 
-              <div className="relative z-10 grid items-center gap-10 p-10 text-center md:gap-12 md:p-16 lg:grid-cols-2 lg:gap-16 lg:p-20 lg:text-left">
-                <div className="order-2 flex justify-center lg:order-1 lg:justify-start">
-                  <img
-                    src={libroEbookTabletAsset}
-                    alt="Ebook ¡Llegó mi momento! He decidido reencarnar en tablet"
-                    className="h-auto max-h-[280px] w-full max-w-sm object-contain drop-shadow-[0_25px_50px_rgba(0,0,0,0.35)] md:max-h-[340px] lg:max-h-[420px] lg:max-w-none"
-                    width={900}
-                    height={700}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-                <div className="order-1 flex flex-col items-center lg:order-2 lg:items-start">
-                  <span className="mb-8 inline-block rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-bold tracking-[0.2em] text-[#FBF9F6] uppercase backdrop-blur-sm">
-                    Descarga Inmediata
-                  </span>
-                  <h2 className="font-serif mb-6 text-5xl font-bold leading-tight text-white md:text-6xl lg:text-[4.25rem] xl:text-[5rem]">
-                    <span className="block whitespace-nowrap">Lleva este libro</span>
-                    <span className="mt-1 block font-light text-[#D4AF37] italic">a tu alma</span>
-                  </h2>
-                  <p className="font-sans mb-12 max-w-2xl text-xl leading-relaxed font-light text-[#E8D5D1]">
-                    Recibe el PDF en tu correo al instante. Un viaje espiritual que podrás leer donde quieras, cuando quieras.
-                  </p>
-                  <a
-                    href={LIBRO_COMPRA_HREF}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-sans group relative inline-flex w-full items-center justify-center gap-4 overflow-hidden rounded-full bg-[#D4AF37] px-10 py-5 text-[16px] font-bold tracking-[0.15em] text-[#2C242C] uppercase shadow-[0_0_40px_rgba(212,175,55,0.4)] transition-all duration-500 hover:-translate-y-1 hover:bg-[#C5A028] hover:shadow-[0_0_60px_rgba(212,175,55,0.6)] sm:w-auto"
-                  >
-                    <span className="absolute h-0 w-0 rounded-full bg-white opacity-10 transition-all duration-500 ease-out group-hover:h-56 group-hover:w-56" />
-                    <span className="relative z-10">✦ Quiero mi libro digital ✦</span>
-                  </a>
-                  <div className="mt-16 flex w-full flex-wrap items-center justify-center gap-6 border-t border-white/10 pt-10 text-sm font-medium text-[#E8D5D1] md:gap-12 lg:justify-start">
-                    <div className="flex items-center gap-3">
-                      <BookOpen className="h-5 w-5 text-[#D4AF37]" />
-                      <span className="tracking-wide">111 páginas</span>
-                    </div>
-                    <div className="hidden h-1 w-1 rounded-full bg-white/30 md:block" />
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="h-5 w-5 text-[#D4AF37]" />
-                      <span className="tracking-wide">Entrega email</span>
-                    </div>
-                    <div className="hidden h-1 w-1 rounded-full bg-white/30 md:block" />
-                    <div className="flex items-center gap-3">
-                      <svg className="h-5 w-5 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                        />
-                      </svg>
-                      <span className="tracking-wide">Pago seguro</span>
+              <div className="relative z-10 space-y-12 p-10 md:p-16 lg:p-20">
+                <div className="grid items-center gap-10 text-center md:gap-12 lg:grid-cols-2 lg:gap-16 lg:text-left">
+                  <div className="order-2 flex justify-center lg:order-1 lg:justify-start">
+                    <img
+                      src={libroEbookTabletAsset}
+                      alt="Ebook ¡Llegó mi momento! He decidido reencarnar en tablet"
+                      className="h-auto max-h-[280px] w-full max-w-sm object-contain drop-shadow-[0_25px_50px_rgba(0,0,0,0.35)] md:max-h-[340px] lg:max-h-[420px] lg:max-w-none"
+                      width={900}
+                      height={700}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                  <div className="order-1 flex flex-col items-center lg:order-2 lg:items-start">
+                    <span className="mb-8 inline-block rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-bold tracking-[0.2em] text-[#FBF9F6] uppercase backdrop-blur-sm">
+                      Descarga Inmediata
+                    </span>
+                    <h2 className="font-serif mb-6 text-5xl font-bold leading-tight text-white md:text-6xl lg:text-[4.25rem] xl:text-[5rem]">
+                      <span className="block whitespace-nowrap">Lleva este libro</span>
+                      <span className="mt-1 block font-light text-[#D4AF37] italic">a tu alma</span>
+                    </h2>
+                    <p className="font-sans mb-4 max-w-2xl text-xl leading-relaxed font-light text-[#E8D5D1]">
+                      Recibe el PDF en tu correo al instante. Un viaje espiritual que podrás leer donde quieras, cuando quieras.
+                    </p>
+                    <p className="font-sans mb-10 text-lg font-medium text-[#D4AF37]">8,44 USD · Pago seguro con Stripe</p>
+                    <LibroCompraCta
+                      className="font-sans group relative inline-flex w-full items-center justify-center gap-4 overflow-hidden rounded-full bg-[#D4AF37] px-10 py-5 text-[16px] font-bold tracking-[0.15em] text-[#2C242C] uppercase shadow-[0_0_40px_rgba(212,175,55,0.4)] transition-all duration-500 hover:-translate-y-1 hover:bg-[#C5A028] hover:shadow-[0_0_60px_rgba(212,175,55,0.6)] enabled:cursor-pointer disabled:cursor-wait disabled:opacity-90 sm:w-auto"
+                      onActivate={activateCheckout}
+                      disabled={checkoutLoading}
+                    >
+                      <span className="absolute h-0 w-0 rounded-full bg-white opacity-10 transition-all duration-500 ease-out group-hover:h-56 group-hover:w-56" />
+                      <span className="relative z-10">
+                        {checkoutLoading ? "Preparando checkout…" : "✦ Quiero mi libro digital ✦"}
+                      </span>
+                    </LibroCompraCta>
+                    <div className="mt-16 flex w-full flex-wrap items-center justify-center gap-6 border-t border-white/10 pt-10 text-sm font-medium text-[#E8D5D1] md:gap-12 lg:justify-start">
+                      <div className="flex items-center gap-3">
+                        <BookOpen className="h-5 w-5 text-[#D4AF37]" />
+                        <span className="tracking-wide">111 páginas</span>
+                      </div>
+                      <div className="hidden h-1 w-1 rounded-full bg-white/30 md:block" />
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-[#D4AF37]" />
+                        <span className="tracking-wide">Entrega email</span>
+                      </div>
+                      <div className="hidden h-1 w-1 rounded-full bg-white/30 md:block" />
+                      <div className="flex items-center gap-3">
+                        <svg className="h-5 w-5 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                          />
+                        </svg>
+                        <span className="tracking-wide">Pago en esta página</span>
+                      </div>
                     </div>
                   </div>
+                </div>
+
+                <div className="relative z-10 border-t border-white/10 pt-10">
+                  <p className="font-sans mb-6 text-center text-xs font-bold tracking-[0.2em] text-[#D4AF37] uppercase lg:text-left">
+                    Pago seguro con Stripe
+                  </p>
+                  {stripeClientSecret && stripePromise ? (
+                    <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
+                      <div className="libro-embedded-checkout mx-auto max-w-xl overflow-hidden rounded-2xl border border-white/25 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.35)] lg:max-w-none">
+                        <EmbeddedCheckout />
+                      </div>
+                    </EmbeddedCheckoutProvider>
+                  ) : (
+                    <div className="mx-auto flex max-w-xl items-center justify-center gap-3 rounded-2xl border border-white/15 bg-black/25 px-8 py-10 backdrop-blur-md lg:max-w-none lg:justify-start">
+                      <svg className="h-5 w-5 shrink-0 animate-spin text-[#D4AF37]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden>
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <p className="font-sans text-[16px] font-light text-[#E8D5D1]">
+                        Preparando formulario de pago seguro…
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -540,7 +706,12 @@ export default function LibroPage() {
       <footer className="relative z-10 border-t border-[#3B1933] bg-[#2C242C] py-16">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-10 px-6 md:flex-row lg:px-12">
           <div className="text-center md:text-left">
-            <h3 className="font-serif mb-4 flex items-center justify-center gap-2 text-3xl font-bold text-[#D4AF37] md:justify-start">
+            <h3 className="font-serif mb-4 flex items-center justify-center gap-3 text-3xl font-bold text-[#D4AF37] md:justify-start">
+              <img
+                src={shiftingSoulsLogo}
+                alt="Shifting Souls"
+                className="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-[#D4AF37]/30"
+              />
               Shifting Souls
             </h3>
             <p className="font-sans text-sm font-light text-[#A59AA5]">
@@ -564,10 +735,8 @@ export default function LibroPage() {
                 <Instagram className="h-5 w-5" />
               </a>
               <a
-                href={LIBRO_COMPRA_HREF}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Consultar compra del ebook"
+                href={LIBRO_SOPORTE_HREF}
+                aria-label="Consulta sobre el ebook"
                 className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 text-white/70 transition-all duration-500 hover:-translate-y-1 hover:border-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#2C242C]"
               >
                 <MessageCircle className="h-5 w-5" />
@@ -578,14 +747,13 @@ export default function LibroPage() {
       </footer>
 
       <div className="fixed bottom-0 left-0 z-50 w-full border-t border-[#F0EBE6] bg-[#FBF9F6]/90 p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl transition-transform duration-300 md:hidden">
-        <a
-          href={LIBRO_COMPRA_HREF}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-sans flex w-full items-center justify-center rounded-full bg-gradient-to-r from-[#502246] to-[#3B1933] py-4 text-sm font-bold tracking-widest text-white uppercase shadow-xl shadow-[#502246]/20"
+        <LibroCompraCta
+          className="font-sans flex w-full items-center justify-center rounded-full bg-gradient-to-r from-[#502246] to-[#3B1933] py-4 text-sm font-bold tracking-widest text-white uppercase shadow-xl shadow-[#502246]/20 enabled:cursor-pointer disabled:cursor-wait disabled:opacity-90"
+          onActivate={activateCheckout}
+          disabled={checkoutLoading}
         >
-          Comprar Ebook
-        </a>
+          {checkoutLoading ? "Preparando…" : "Comprar Ebook"}
+        </LibroCompraCta>
       </div>
     </div>
   );
