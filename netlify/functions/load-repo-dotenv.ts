@@ -5,15 +5,23 @@ import { config } from 'dotenv';
 let attempted = false;
 
 /**
- * Con `npm run dev` + @netlify/vite-plugin, el proceso de las funciones a veces no
- * recibe el `.env` de la raíz del repo en `process.env`.
- * Subimos desde `process.cwd()` hasta encontrar un `.env` (sin `import.meta.url`,
- * el bundler local puede emitir CJS y dejaría `import.meta` vacío).
- * En Netlify producción `STRIPE_SECRET_KEY` ya viene definida: no leemos archivos.
+ * Con `npm run dev` + @netlify/vite-plugin, el proceso de las funciones a veces recibe
+ * solo parte de las variables (p. ej. Stripe) pero no RESEND ni el .env completo.
+ * Cargamos el `.env` de la raíz del repo si falta cualquiera de las claves críticas.
+ * `override: false` no pisa variables ya inyectadas por Netlify/Vite.
  */
 export function loadRepoDotenvIfMissingStripe(): void {
-  if (process.env.STRIPE_SECRET_KEY) return;
   if (attempted) return;
+
+  const hasStripe = Boolean(process.env.STRIPE_SECRET_KEY?.trim());
+  const hasResend = Boolean(process.env.RESEND_API_KEY?.trim());
+  const hasWebhook = Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim());
+
+  if (hasStripe && hasResend && hasWebhook) {
+    attempted = true;
+    return;
+  }
+
   attempted = true;
 
   const seen = new Set<string>();
