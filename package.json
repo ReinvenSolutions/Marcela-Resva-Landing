@@ -9,6 +9,7 @@
     "stripe:listen": "stripe listen --forward-to http://localhost:5176/.netlify/functions/stripe-webhook-libro",
     "stripe:listen:5177": "stripe listen --forward-to http://localhost:5177/.netlify/functions/stripe-webhook-libro",
     "stripe:listen:minimal": "stripe listen --forward-to http://localhost:5176/.netlify/functions/stripe-webhook-libro --events checkout.session.completed,checkout.session.async_payment_succeeded",
+    "stripe:webhook:register": "node scripts/stripe-webhook-register.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "check": "tsc"

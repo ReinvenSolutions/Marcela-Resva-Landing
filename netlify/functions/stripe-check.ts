@@ -22,12 +22,15 @@ export const handler: Handler = async (event) => {
   const secret = process.env.STRIPE_SECRET_KEY;
   const pubKey = process.env.VITE_STRIPE_PUBLISHABLE_KEY || process.env.STRIPE_PUBLISHABLE_KEY;
 
+  const resendKey = process.env.RESEND_API_KEY?.trim();
   const result: Record<string, unknown> = {
     STRIPE_SECRET_KEY: secret ? `${secret.slice(0, 12)}…(${secret.length} chars)` : 'FALTA',
     VITE_STRIPE_PUBLISHABLE_KEY: pubKey ? `${pubKey.slice(0, 12)}…(${pubKey.length} chars)` : 'FALTA',
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET
       ? `${process.env.STRIPE_WEBHOOK_SECRET.slice(0, 12)}…`
       : 'FALTA',
+    RESEND_API_KEY: resendKey ? `${resendKey.slice(0, 6)}…(${resendKey.length} chars)` : 'FALTA (sin esto, el PDF no sale por Resend)',
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL?.trim() || '(opcional; hay valor por defecto en código)',
   };
 
   if (!secret) {

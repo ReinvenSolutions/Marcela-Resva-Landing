@@ -19,6 +19,28 @@ function normalizeStripeSecret(raw: string | undefined): string {
   return s;
 }
 
+/** Cuerpo exacto que Stripe firmó (Netlify a veces entrega `body` en base64). */
+function getStripeWebhookRawBody(event: Parameters<Handler>[0]): string | Buffer {
+  const body = event.body;
+  if (body == null || body === '') return '';
+  if (event.isBase64Encoded) {
+    return Buffer.from(body, 'base64');
+  }
+  return body;
+}
+
+function getStripeSignature(headers: Parameters<Handler>[0]['headers']): string | undefined {
+  if (!headers) return undefined;
+  const direct = headers['stripe-signature'] ?? headers['Stripe-Signature'];
+  if (typeof direct === 'string' && direct.length > 0) return direct;
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === 'stripe-signature' && typeof value === 'string' && value.length > 0) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 function buildEmailHtml(nombre: string): string {
   return `<!DOCTYPE html>
 <html lang="es">
@@ -282,14 +304,14 @@ export const handler: Handler = async (event) => {
   }
 
   const stripe = new Stripe(secret);
-  const sig = event.headers['stripe-signature'];
+  const sig = getStripeSignature(event.headers);
   if (!sig) {
     return { statusCode: 400, body: 'Missing stripe-signature' };
   }
 
   let stripeEvent: Stripe.Event;
   try {
-    stripeEvent = stripe.webhooks.constructEvent(event.body || '', sig, webhookSecret);
+    stripeEvent = stripe.webhooks.constructEvent(getStripeWebhookRawBody(event), sig, webhookSecret);
   } catch (err) {
     console.error('stripe-webhook-libro: firma inválida', err);
     return { statusCode: 400, body: 'Invalid signature' };

@@ -33,7 +33,9 @@ Guía completa para desarrollo local, diagnóstico, variables de entorno y despl
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Bundle del navegador | **Sí** |
 | `STRIPE_PUBLISHABLE_KEY` | Alternativa si no defines `VITE_*` | No (Vite la toma automáticamente) |
 | `STRIPE_SECRET_KEY` | Función `create-checkout-session` | **Sí** |
-| `STRIPE_WEBHOOK_SECRET` | Función `stripe-webhook-libro` | Sí (en producción) |
+| `STRIPE_WEBHOOK_SECRET` | Función `stripe-webhook-libro` | Sí (en producción; en local, el de `stripe listen`) |
+| `RESEND_API_KEY` | Envío del PDF por correo tras el webhook | **Sí en Netlify** (si falta, nunca se llama a Resend) |
+| `RESEND_FROM_EMAIL` | Remitente del correo (dominio verificado en Resend) | Recomendada en producción |
 | `URL` | Fallback de origen si el POST no manda `origin` | Opcional |
 
 **Claves opcionales:**
@@ -173,22 +175,54 @@ En **Site settings → Environment variables** define al menos:
 
 - `VITE_STRIPE_PUBLISHABLE_KEY` = `pk_live_…` (necesaria en **build** para el bundle del cliente).
 - `STRIPE_SECRET_KEY` = `sk_live_…` (marcada como **secret**, solo accesible en funciones).
-- `STRIPE_WEBHOOK_SECRET` = `whsec_…` del endpoint de webhook.
+- `STRIPE_WEBHOOK_SECRET` = `whsec_…` del endpoint de webhook (debe ser el **mismo** endpoint que la URL pública; ver abajo).
+- `RESEND_API_KEY` = clave `re_…` de Resend (**obligatoria** para el correo con PDF).
+- `RESEND_FROM_EMAIL` = remitente verificado (ej. `Marcela Resva <hola@tudominio.com>`).
 - `URL` = URL canónica del sitio (p. ej. `https://marcelaresva.com`).
 
 Tras cada cambio de variables en Netlify, haz un **nuevo deploy**.
 
 ---
 
-## Webhook en Stripe
+## Webhook en Stripe (producción)
 
-### Producción
+### Opción A — Script desde el repo (recomendado)
+
+1. En tu `.env` local (no se sube a git), con la misma **`STRIPE_SECRET_KEY` que uses en producción** (`sk_live_…`):
+
+   ```bash
+   STRIPE_WEBHOOK_ENDPOINT_URL=https://TU-DOMINIO/.netlify/functions/stripe-webhook-libro
+   ```
+
+   Puedes añadir esa línea al `.env` solo para ejecutar el script.
+
+2. Ejecuta:
+
+   ```bash
+   npm run stripe:webhook:register
+   ```
+
+3. Copia el `whsec_…` que imprime el script a Netlify → **Environment variables** → `STRIPE_WEBHOOK_SECRET` → guarda y **redeploy**.
+
+Si el script dice que el endpoint **ya existe** con esa URL, el `whsec_` solo lo verás en Stripe Dashboard → Webhooks → ese endpoint → **Reveal** (o borra el endpoint y vuelve a registrar).
+
+### Opción B — A mano en el Dashboard
+
 1. Stripe Dashboard → **Developers → Webhooks → Add endpoint**.
 2. URL: `https://<tu-dominio>/.netlify/functions/stripe-webhook-libro`.
-3. Eventos: `checkout.session.completed`.
+3. Eventos: `checkout.session.completed` y `checkout.session.async_payment_succeeded`.
 4. Copia el **Signing secret** (`whsec_…`) → `STRIPE_WEBHOOK_SECRET` en Netlify.
 
+---
+
+## Firma del webhook y cuerpo «raw»
+
+La función decodifica el cuerpo cuando Netlify envía `isBase64Encoded: true`, porque si no, `constructEvent` falla y Stripe muestra entregas **400** sin llegar a Resend.
+
+Si en el Dashboard de Stripe ves **«Invalid signature»** o **400** en las entregas: revisa que `STRIPE_WEBHOOK_SECRET` sea el del **mismo** endpoint (Dashboard o `stripe listen`), y que modo **test/live** coincida con la clave `sk_…`.
+
 ### Local (para probar el webhook)
+
 ```bash
 # Instala Stripe CLI: https://stripe.com/docs/stripe-cli
 stripe login
@@ -196,6 +230,8 @@ stripe listen --forward-to http://localhost:5176/.netlify/functions/stripe-webho
 # El CLI te dará un whsec_ temporal → ponlo en STRIPE_WEBHOOK_SECRET en tu .env
 # Reinicia npm run dev
 ```
+
+O usa el atajo del `package.json`: `npm run stripe:listen`.
 
 ---
 
@@ -213,7 +249,8 @@ stripe listen --forward-to http://localhost:5176/.netlify/functions/stripe-webho
 |---------|-----|
 | `client/src/pages/libro.tsx` | UI y llamada `fetch('/.netlify/functions/create-checkout-session', …)` |
 | `netlify/functions/create-checkout-session.ts` | Creación de sesión de pago |
-| `netlify/functions/stripe-webhook-libro.ts` | Webhook post-pago |
+| `netlify/functions/stripe-webhook-libro.ts` | Webhook post-pago (firma Stripe + Resend + PDF) |
+| `scripts/stripe-webhook-register.mjs` | Crea el endpoint en Stripe (`npm run stripe:webhook:register`) |
 | `netlify/functions/stripe-check.ts` | Diagnóstico / health-check |
 | `netlify/functions/load-repo-dotenv.ts` | Carga del `.env` raíz en local si falta `STRIPE_SECRET_KEY` |
 | `vite.config.ts` | `envDir` y fallback `VITE_STRIPE_PUBLISHABLE_KEY` |
